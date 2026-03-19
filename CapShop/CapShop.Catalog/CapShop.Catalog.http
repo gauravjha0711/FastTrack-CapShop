@@ -1,6 +1,0 @@
-@CapShop.Catalog_HostAddress = http://localhost:5123
-
-GET {{CapShop.Catalog_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
