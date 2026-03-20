@@ -12,6 +12,7 @@ import HomePage from "../pages/customer/HomePage";
 import ProductsPage from "../pages/customer/ProductsPage";
 import ProductDetailPage from "../pages/customer/ProductDetailPage";
 import CartPage from "../pages/customer/CartPage";
+import CheckoutPage from "../pages/customer/CheckoutPage";
 
 import LoginPage from "../pages/auth/LoginPage";
 import SignupPage from "../pages/auth/SignupPage";
@@ -36,6 +37,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={["Customer"]}>
             <CartPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "checkout",
+        element: (
+          <ProtectedRoute allowedRoles={["Customer"]}>
+            <CheckoutPage />
           </ProtectedRoute>
         ),
       },

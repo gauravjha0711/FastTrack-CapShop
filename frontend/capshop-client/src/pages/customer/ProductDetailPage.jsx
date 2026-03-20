@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Badge, Button, Card, Col, Row, Spinner } from "react-bootstrap";
-import { useParams } from "react-router-dom";
+import { Alert, Badge, Button, Card, Col, Form, Row, Spinner } from "react-bootstrap";
+import { useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../services/axiosInstance";
+import { useAuth } from "../../context/AuthContext";
+import { addToCart } from "../../services/cartService";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { isAuthenticated, role } = useAuth();
 
   const [product, setProduct] = useState(null);
+  const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -26,6 +32,31 @@ const ProductDetailPage = () => {
       setError(err.response?.data?.message || "Product detail load nahi ho payi.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      alert("Please login as customer first.");
+      navigate("/login");
+      return;
+    }
+
+    if (role !== "Customer") {
+      alert("Only customer can add items to cart.");
+      return;
+    }
+
+    try {
+      setAdding(true);
+      await addToCart(product.id, Number(quantity));
+      alert("Item added to cart successfully.");
+      navigate("/cart");
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Add to cart failed.");
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -78,8 +109,24 @@ const ProductDetailPage = () => {
 
             <p>{product.description}</p>
 
-            <Button disabled={isOutOfStock} variant="primary">
-              {isOutOfStock ? "Unavailable" : "Add to Cart"}
+            <Form.Group className="mb-3" style={{ maxWidth: "160px" }}>
+              <Form.Label>Quantity</Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                max={product.stock > 0 ? product.stock : 1}
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                disabled={isOutOfStock}
+              />
+            </Form.Group>
+
+            <Button
+              disabled={isOutOfStock || adding}
+              variant="primary"
+              onClick={handleAddToCart}
+            >
+              {isOutOfStock ? "Unavailable" : adding ? "Adding..." : "Add to Cart"}
             </Button>
           </Col>
         </Row>

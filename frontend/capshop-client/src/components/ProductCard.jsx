@@ -1,9 +1,38 @@
-import React from "react";
+import React, { useState } from "react";
 import { Badge, Button, Card } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { addToCart } from "../services/cartService";
 
 const ProductCard = ({ product }) => {
   const isOutOfStock = product.stock <= 0;
+  const navigate = useNavigate();
+  const { isAuthenticated, role } = useAuth();
+  const [adding, setAdding] = useState(false);
+
+  const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      alert("Please login as customer first.");
+      navigate("/login");
+      return;
+    }
+
+    if (role !== "Customer") {
+      alert("Only customer can add items to cart.");
+      return;
+    }
+
+    try {
+      setAdding(true);
+      await addToCart(product.id, 1);
+      alert("Item added to cart successfully.");
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Add to cart failed.");
+    } finally {
+      setAdding(false);
+    }
+  };
 
   return (
     <Card className="h-100 card-shadow">
@@ -23,7 +52,11 @@ const ProductCard = ({ product }) => {
 
         <div className="mb-2">
           <Badge bg="secondary">{product.categoryName}</Badge>
-          {product.isFeatured && <Badge bg="warning" text="dark" className="ms-2">Featured</Badge>}
+          {product.isFeatured && (
+            <Badge bg="warning" text="dark" className="ms-2">
+              Featured
+            </Badge>
+          )}
         </div>
 
         <Card.Text style={{ flexGrow: 1 }}>
@@ -39,8 +72,8 @@ const ProductCard = ({ product }) => {
             View Details
           </Button>
 
-          <Button disabled={isOutOfStock} variant="primary">
-            {isOutOfStock ? "Unavailable" : "Add to Cart"}
+          <Button disabled={isOutOfStock || adding} variant="primary" onClick={handleAddToCart}>
+            {isOutOfStock ? "Unavailable" : adding ? "Adding..." : "Add to Cart"}
           </Button>
         </div>
       </Card.Body>
