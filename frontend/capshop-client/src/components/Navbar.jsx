@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const Navbar = () => {
-  const { isAuthenticated, role, logout } = useAuth();
+  const { isAuthenticated, role, name, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -21,7 +21,7 @@ const Navbar = () => {
 
         <BsNavbar.Toggle aria-controls="basic-navbar-nav" />
         <BsNavbar.Collapse id="basic-navbar-nav">
-          <Nav className="ms-auto">
+          <Nav className="ms-auto align-items-center gap-2">
             <Nav.Link as={Link} to="/">
               Home
             </Nav.Link>
@@ -54,9 +54,12 @@ const Navbar = () => {
             )}
 
             {isAuthenticated && (
-              <Button variant="outline-light" size="sm" onClick={handleLogout}>
-                Logout
-              </Button>
+              <>
+                <span className="text-white small">Hi, {name}</span>
+                <Button variant="outline-light" size="sm" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </>
             )}
           </Nav>
         </BsNavbar.Collapse>

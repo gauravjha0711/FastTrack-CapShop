@@ -1,26 +1,36 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { getToken, getUserRole, clearAuthData, saveAuthData } from "../utils/tokenHelper";
+import {
+  clearAuthData,
+  getToken,
+  getUserId,
+  getUserName,
+  getUserRole,
+  saveAuthData,
+} from "../utils/tokenHelper";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(getToken());
   const [role, setRole] = useState(getUserRole());
+  const [userId, setUserId] = useState(getUserId());
+  const [name, setName] = useState(getUserName());
   const [isAuthenticated, setIsAuthenticated] = useState(!!getToken());
 
   useEffect(() => {
-    const existingToken = getToken();
-    const existingRole = getUserRole();
-
-    setToken(existingToken);
-    setRole(existingRole);
-    setIsAuthenticated(!!existingToken);
+    setToken(getToken());
+    setRole(getUserRole());
+    setUserId(getUserId());
+    setName(getUserName());
+    setIsAuthenticated(!!getToken());
   }, []);
 
   const login = (authResponse) => {
-    saveAuthData(authResponse.token, authResponse.role);
+    saveAuthData(authResponse);
     setToken(authResponse.token);
     setRole(authResponse.role);
+    setUserId(authResponse.userId);
+    setName(authResponse.name);
     setIsAuthenticated(true);
   };
 
@@ -28,6 +38,8 @@ export const AuthProvider = ({ children }) => {
     clearAuthData();
     setToken(null);
     setRole(null);
+    setUserId(null);
+    setName(null);
     setIsAuthenticated(false);
   };
 
@@ -36,6 +48,8 @@ export const AuthProvider = ({ children }) => {
       value={{
         token,
         role,
+        userId,
+        name,
         isAuthenticated,
         login,
         logout,

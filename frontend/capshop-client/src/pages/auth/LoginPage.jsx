@@ -10,6 +10,8 @@ const LoginPage = () => {
     password: "",
   });
 
+  const [loading, setLoading] = useState(false);
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -20,44 +22,42 @@ const LoginPage = () => {
     }));
   };
 
-  const handleDemoLogin = async (roleType) => {
-    try {
-      const payload =
-        roleType === "Admin"
-          ? { email: "admin@capshop.com", password: "Admin@123" }
-          : { email: "customer@capshop.com", password: "Customer@123" };
-
-      const response = await axiosInstance.post("/gateway/auth/login", payload);
-
-      login(response.data);
-
-      if (response.data.role === "Admin") {
-        navigate("/admin/dashboard");
-      } else {
-        navigate("/");
-      }
-    } catch (error) {
-      console.error("Login failed", error);
-      alert("Demo login failed. Check backend/gateway.");
+  const redirectUser = (role) => {
+    if (role === "Admin") {
+      navigate("/admin/dashboard");
+    } else {
+      navigate("/");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      const response = await axiosInstance.post("/gateway/auth/login", formData);
-      login(response.data);
+    if (!formData.email.trim() || !formData.password.trim()) {
+      alert("Email and password are required");
+      return;
+    }
 
-      if (response.data.role === "Admin") {
-        navigate("/admin/dashboard");
-      } else {
-        navigate("/");
-      }
+    try {
+      setLoading(true);
+
+      const response = await axiosInstance.post("/gateway/auth/login", formData);
+
+      login(response.data);
+      redirectUser(response.data.role);
     } catch (error) {
       console.error(error);
-      alert("Login failed");
+      alert(error.response?.data?.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const fillAdminDemo = () => {
+    setFormData({
+      email: "admin@capshop.com",
+      password: "Admin@123",
+    });
   };
 
   return (
@@ -89,21 +89,19 @@ const LoginPage = () => {
               />
             </Form.Group>
 
-            <Button type="submit" className="w-100 mb-3">
-              Login
+            <Button type="submit" className="w-100 mb-2" disabled={loading}>
+              {loading ? "Logging in..." : "Login"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline-dark"
+              className="w-100"
+              onClick={fillAdminDemo}
+            >
+              Fill Admin Demo Credentials
             </Button>
           </Form>
-
-          <hr />
-
-          <div className="d-grid gap-2">
-            <Button variant="outline-primary" onClick={() => handleDemoLogin("Customer")}>
-              Demo Customer Login
-            </Button>
-            <Button variant="outline-dark" onClick={() => handleDemoLogin("Admin")}>
-              Demo Admin Login
-            </Button>
-          </div>
         </Card>
       </Col>
     </Row>

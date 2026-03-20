@@ -13,6 +13,8 @@ const SignupPage = () => {
     phone: "",
   });
 
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,
@@ -20,16 +22,47 @@ const SignupPage = () => {
     }));
   };
 
+  const validateForm = () => {
+    if (!formData.fullName.trim()) {
+      alert("Full name is required");
+      return false;
+    }
+
+    if (!formData.email.trim()) {
+      alert("Email is required");
+      return false;
+    }
+
+    if (!formData.phone.trim()) {
+      alert("Phone is required");
+      return false;
+    }
+
+    if (formData.password.length < 6) {
+      alert("Password must be at least 6 characters");
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!validateForm()) return;
+
     try {
+      setLoading(true);
+
       await axiosInstance.post("/gateway/auth/signup", formData);
+
       alert("Signup successful. Please login.");
       navigate("/login");
     } catch (error) {
       console.error(error);
-      alert("Signup failed");
+      alert(error.response?.data?.message || "Signup failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,8 +115,8 @@ const SignupPage = () => {
               />
             </Form.Group>
 
-            <Button type="submit" className="w-100">
-              Create Account
+            <Button type="submit" className="w-100" disabled={loading}>
+              {loading ? "Creating Account..." : "Create Account"}
             </Button>
           </Form>
         </Card>
