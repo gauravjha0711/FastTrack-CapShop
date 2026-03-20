@@ -1,42 +1,111 @@
-import React from "react";
-import { Button, Card, Col, Row } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Alert, Button, Col, Row, Spinner } from "react-bootstrap";
+import { Link, useNavigate } from "react-router-dom";
+import axiosInstance from "../../services/axiosInstance";
+import ProductCard from "../../components/ProductCard";
+import CategoryCard from "../../components/CategoryCard";
 
 const HomePage = () => {
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchFeaturedProducts();
+    fetchCategories();
+  }, []);
+
+  const fetchFeaturedProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const response = await axiosInstance.get("/gateway/catalog/featured");
+      setFeaturedProducts(response.data);
+    } catch (err) {
+      console.error(err);
+      setError("Featured products load nahi ho paaye.");
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const response = await axiosInstance.get("/gateway/catalog/categories");
+      setCategories(response.data);
+    } catch (err) {
+      console.error(err);
+      setError("Categories load nahi ho paayi.");
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const handleCategoryClick = (categoryId) => {
+    navigate(`/products?categoryId=${categoryId}`);
+  };
+
   return (
     <>
       <div className="hero-section">
         <h1>Welcome to CapShop</h1>
-        <p>Your microservices-based eCommerce application</p>
+        <p>Discover trendy, stylish and comfortable caps for every occasion.</p>
         <Button as={Link} to="/products" variant="light">
-          Shop Now
+          Explore Products
         </Button>
       </div>
 
-      <h3 className="mt-5 mb-3">Featured Sections</h3>
+      {error && <Alert variant="danger" className="mt-4">{error}</Alert>}
 
-      <Row>
-        <Col md={4}>
-          <Card className="p-3 card-shadow">
-            <h5>Fast Delivery</h5>
-            <p>Optimized order and checkout journey.</p>
-          </Card>
-        </Col>
+      <section className="mt-5">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h3>Shop by Category</h3>
+          <Button as={Link} to="/products" variant="outline-primary">
+            View All Products
+          </Button>
+        </div>
 
-        <Col md={4}>
-          <Card className="p-3 card-shadow">
-            <h5>Secure Access</h5>
-            <p>JWT-based authentication and role-based access.</p>
-          </Card>
-        </Col>
+        {loadingCategories ? (
+          <div className="text-center py-4">
+            <Spinner animation="border" />
+          </div>
+        ) : (
+          <Row>
+            {categories.map((category) => (
+              <Col md={4} className="mb-4" key={category.id}>
+                <CategoryCard category={category} onClick={handleCategoryClick} />
+              </Col>
+            ))}
+          </Row>
+        )}
+      </section>
 
-        <Col md={4}>
-          <Card className="p-3 card-shadow">
-            <h5>Microservices Ready</h5>
-            <p>Gateway + independent backend services setup.</p>
-          </Card>
-        </Col>
-      </Row>
+      <section className="mt-5 mb-4">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h3>Featured Products</h3>
+          <Button as={Link} to="/products" variant="outline-dark">
+            Browse Catalog
+          </Button>
+        </div>
+
+        {loadingProducts ? (
+          <div className="text-center py-4">
+            <Spinner animation="border" />
+          </div>
+        ) : (
+          <Row>
+            {featuredProducts.map((product) => (
+              <Col md={4} className="mb-4" key={product.id}>
+                <ProductCard product={product} />
+              </Col>
+            ))}
+          </Row>
+        )}
+      </section>
     </>
   );
 };

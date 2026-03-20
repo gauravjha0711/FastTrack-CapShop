@@ -10,6 +10,7 @@ import ProtectedRoute from "../components/ProtectedRoute";
 
 import HomePage from "../pages/customer/HomePage";
 import ProductsPage from "../pages/customer/ProductsPage";
+import ProductDetailPage from "../pages/customer/ProductDetailPage";
 import CartPage from "../pages/customer/CartPage";
 
 import LoginPage from "../pages/auth/LoginPage";
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: "products", element: <ProductsPage /> },
+      { path: "products/:id", element: <ProductDetailPage /> },
       {
         path: "cart",
         element: (
