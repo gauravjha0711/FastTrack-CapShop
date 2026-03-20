@@ -1,4 +1,5 @@
 using CapShop.CatalogService.Data;
+using CapShop.CatalogService.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,5 +31,7 @@ app.UseCors("AllowFrontend");
 app.UseAuthorization();
 
 app.MapControllers();
+
+await CatalogDbSeeder.SeedAsync(app);
 
 app.Run();
