@@ -99,6 +99,11 @@ namespace CapShop.OrderService.Controllers
                 return NotFound(new { message = "Product not found." });
             }
 
+            if (!product.IsActive)
+            {
+                return BadRequest(new { message = "Product is inactive." });
+            }
+
             if (product.Stock <= 0)
             {
                 return BadRequest(new { message = "Product is out of stock." });
@@ -221,10 +226,7 @@ namespace CapShop.OrderService.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new
-            {
-                message = "Cart item quantity updated successfully."
-            });
+            return Ok(new { message = "Cart item quantity updated successfully." });
         }
 
         [Authorize(Roles = "Customer")]
@@ -254,10 +256,7 @@ namespace CapShop.OrderService.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new
-            {
-                message = "Item removed from cart successfully."
-            });
+            return Ok(new { message = "Item removed from cart successfully." });
         }
 
         [Authorize(Roles = "Customer")]
@@ -277,10 +276,7 @@ namespace CapShop.OrderService.Controllers
 
             if (cart == null || !cart.Items.Any())
             {
-                return BadRequest(new
-                {
-                    message = "Cart is empty. Add items before checkout."
-                });
+                return BadRequest(new { message = "Cart is empty. Add items before checkout." });
             }
 
             var session = await _context.CheckoutSessions
@@ -332,10 +328,7 @@ namespace CapShop.OrderService.Controllers
 
             if (session == null)
             {
-                return BadRequest(new
-                {
-                    message = "Checkout session not found. Complete address step first."
-                });
+                return BadRequest(new { message = "Checkout session not found. Complete address step first." });
             }
 
             session.PaymentMethod = request.PaymentMethod;
@@ -349,9 +342,7 @@ namespace CapShop.OrderService.Controllers
 
             return Ok(new
             {
-                message = request.SimulateSuccess
-                    ? "Payment simulated successfully."
-                    : "Payment simulation failed.",
+                message = request.SimulateSuccess ? "Payment simulated successfully." : "Payment simulation failed.",
                 paymentStatus = session.PaymentStatus,
                 paymentReference = session.PaymentReference
             });
@@ -374,10 +365,7 @@ namespace CapShop.OrderService.Controllers
 
             if (cart == null || !cart.Items.Any())
             {
-                return BadRequest(new
-                {
-                    message = "Cart is empty. Cannot place order."
-                });
+                return BadRequest(new { message = "Cart is empty. Cannot place order." });
             }
 
             var session = await _context.CheckoutSessions
@@ -385,18 +373,12 @@ namespace CapShop.OrderService.Controllers
 
             if (session == null)
             {
-                return BadRequest(new
-                {
-                    message = "Checkout session not found. Complete checkout steps first."
-                });
+                return BadRequest(new { message = "Checkout session not found. Complete checkout steps first." });
             }
 
             if (!string.Equals(session.PaymentStatus, "Success", StringComparison.OrdinalIgnoreCase))
             {
-                return BadRequest(new
-                {
-                    message = "Payment is not successful. Cannot place order."
-                });
+                return BadRequest(new { message = "Payment is not successful. Cannot place order." });
             }
 
             foreach (var item in cart.Items)
@@ -405,18 +387,17 @@ namespace CapShop.OrderService.Controllers
 
                 if (latestProduct == null)
                 {
-                    return BadRequest(new
-                    {
-                        message = $"Product not found for product id {item.ProductId}."
-                    });
+                    return BadRequest(new { message = $"Product not found for product id {item.ProductId}." });
+                }
+
+                if (!latestProduct.IsActive)
+                {
+                    return BadRequest(new { message = $"Product {item.ProductName} is inactive." });
                 }
 
                 if (latestProduct.Stock < item.Quantity)
                 {
-                    return BadRequest(new
-                    {
-                        message = $"Insufficient stock for product {item.ProductName}."
-                    });
+                    return BadRequest(new { message = $"Insufficient stock for product {item.ProductName}." });
                 }
             }
 
@@ -426,10 +407,7 @@ namespace CapShop.OrderService.Controllers
 
                 if (!reduced)
                 {
-                    return BadRequest(new
-                    {
-                        message = $"Failed to reduce stock for product {item.ProductName}."
-                    });
+                    return BadRequest(new { message = $"Failed to reduce stock for product {item.ProductName}." });
                 }
             }
 
@@ -511,10 +489,7 @@ namespace CapShop.OrderService.Controllers
 
             if (order == null)
             {
-                return NotFound(new
-                {
-                    message = "Order not found."
-                });
+                return NotFound(new { message = "Order not found." });
             }
 
             var response = new OrderDetailDto
@@ -558,29 +533,140 @@ namespace CapShop.OrderService.Controllers
 
             if (order == null)
             {
-                return NotFound(new
-                {
-                    message = "Order not found."
-                });
+                return NotFound(new { message = "Order not found." });
             }
 
             var nonCancelableStatuses = new[] { "Packed", "Shipped", "Delivered", "Cancelled" };
 
             if (nonCancelableStatuses.Contains(order.Status, StringComparer.OrdinalIgnoreCase))
             {
-                return BadRequest(new
-                {
-                    message = "Order cannot be cancelled after packed stage."
-                });
+                return BadRequest(new { message = "Order cannot be cancelled after packed stage." });
             }
 
             order.Status = "Cancelled";
             await _context.SaveChangesAsync();
 
+            return Ok(new { message = "Order cancelled successfully." });
+        }
+
+        [HttpGet("admin/all")]
+        public async Task<IActionResult> GetAllOrdersForAdmin()
+        {
+            var orders = await _context.Orders
+                .Include(o => o.OrderItems)
+                .OrderByDescending(o => o.OrderDate)
+                .Select(o => new
+                {
+                    o.Id,
+                    o.UserId,
+                    o.OrderDate,
+                    o.TotalAmount,
+                    o.Status,
+                    o.PaymentMethod,
+                    o.PaymentStatus,
+                    o.DeliveryOption,
+                    o.FullName,
+                    o.Phone,
+                    o.City,
+                    o.State,
+                    TotalItems = o.OrderItems.Count
+                })
+                .ToListAsync();
+
+            return Ok(orders);
+        }
+
+        [HttpPut("admin/{id}/status")]
+        public async Task<IActionResult> UpdateOrderStatusByAdmin(int id, AdminUpdateOrderStatusDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var validStatuses = new[] { "Paid", "Packed", "Shipped", "Delivered", "Cancelled" };
+
+            if (!validStatuses.Contains(request.Status, StringComparer.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Invalid order status." });
+            }
+
+            var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null)
+            {
+                return NotFound(new { message = "Order not found." });
+            }
+
+            order.Status = request.Status;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Order status updated successfully." });
+        }
+
+        [HttpGet("admin/dashboard-summary")]
+        public async Task<IActionResult> GetDashboardSummaryForAdmin()
+        {
+            var totalOrders = await _context.Orders.CountAsync();
+            var pendingOrders = await _context.Orders.CountAsync(o =>
+                o.Status == "Paid" || o.Status == "Packed");
+            var totalSales = await _context.Orders
+                .Where(o => o.Status != "Cancelled")
+                .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
+
+            var recentOrders = await _context.Orders
+                .OrderByDescending(o => o.OrderDate)
+                .Take(5)
+                .Select(o => new
+                {
+                    o.Id,
+                    o.FullName,
+                    o.Status,
+                    o.TotalAmount,
+                    o.OrderDate
+                })
+                .ToListAsync();
+
             return Ok(new
             {
-                message = "Order cancelled successfully."
+                totalOrders,
+                pendingOrders,
+                totalSales,
+                recentOrders
             });
+        }
+
+        [HttpGet("admin/reports/status-split")]
+        public async Task<IActionResult> GetStatusSplitReport()
+        {
+            var result = await _context.Orders
+                .GroupBy(o => o.Status)
+                .Select(g => new
+                {
+                    status = g.Key,
+                    count = g.Count()
+                })
+                .ToListAsync();
+
+            return Ok(result);
+        }
+
+        [HttpGet("admin/reports/sales")]
+        public async Task<IActionResult> GetSalesReport()
+        {
+            var result = await _context.Orders
+                .Where(o => o.Status != "Cancelled")
+                .GroupBy(o => o.OrderDate.Date)
+                .Select(g => new
+                {
+                    date = g.Key,
+                    totalSales = g.Sum(x => x.TotalAmount),
+                    orderCount = g.Count()
+                })
+                .OrderBy(x => x.date)
+                .ToListAsync();
+
+            return Ok(result);
         }
     }
 }

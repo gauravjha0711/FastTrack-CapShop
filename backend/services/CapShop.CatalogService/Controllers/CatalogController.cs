@@ -1,5 +1,6 @@
 ﻿using CapShop.CatalogService.Data;
 using CapShop.CatalogService.DTOs;
+using CapShop.CatalogService.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -125,7 +126,7 @@ namespace CapShop.CatalogService.Controllers
         {
             var product = await _context.Products
                 .Include(p => p.Category)
-                .Where(p => p.IsActive && p.Id == id)
+                .Where(p => p.Id == id)
                 .Select(p => new
                 {
                     p.Id,
@@ -137,16 +138,14 @@ namespace CapShop.CatalogService.Controllers
                     p.CategoryId,
                     CategoryName = p.Category != null ? p.Category.Name : "",
                     p.IsFeatured,
-                    p.CreatedAt
+                    p.CreatedAt,
+                    p.IsActive
                 })
                 .FirstOrDefaultAsync();
 
             if (product == null)
             {
-                return NotFound(new
-                {
-                    message = "Product not found"
-                });
+                return NotFound(new { message = "Product not found" });
             }
 
             return Ok(product);
@@ -164,22 +163,15 @@ namespace CapShop.CatalogService.Controllers
 
             if (product == null)
             {
-                return NotFound(new
-                {
-                    message = "Product not found"
-                });
+                return NotFound(new { message = "Product not found" });
             }
 
             if (request.Quantity > product.Stock)
             {
-                return BadRequest(new
-                {
-                    message = "Insufficient stock"
-                });
+                return BadRequest(new { message = "Insufficient stock" });
             }
 
             product.Stock -= request.Quantity;
-
             await _context.SaveChangesAsync();
 
             return Ok(new
@@ -188,6 +180,137 @@ namespace CapShop.CatalogService.Controllers
                 productId = product.Id,
                 remainingStock = product.Stock
             });
+        }
+
+        [HttpGet("admin/products")]
+        public async Task<IActionResult> GetAdminProducts()
+        {
+            var products = await _context.Products
+                .Include(p => p.Category)
+                .OrderByDescending(p => p.CreatedAt)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.Description,
+                    p.Price,
+                    p.Stock,
+                    p.ImageUrl,
+                    p.CategoryId,
+                    CategoryName = p.Category != null ? p.Category.Name : "",
+                    p.IsFeatured,
+                    p.IsActive,
+                    p.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(products);
+        }
+
+        [HttpPost("admin/products")]
+        public async Task<IActionResult> CreateProduct(AdminCreateProductDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == request.CategoryId);
+            if (!categoryExists)
+            {
+                return BadRequest(new { message = "Invalid category selected." });
+            }
+
+            var product = new Product
+            {
+                Name = request.Name,
+                Description = request.Description,
+                Price = request.Price,
+                Stock = request.Stock,
+                CategoryId = request.CategoryId,
+                ImageUrl = request.ImageUrl,
+                IsFeatured = request.IsFeatured,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Products.Add(product);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Product created successfully.",
+                productId = product.Id
+            });
+        }
+
+        [HttpPut("admin/products/{id}")]
+        public async Task<IActionResult> UpdateProduct(int id, AdminUpdateProductDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
+            if (product == null)
+            {
+                return NotFound(new { message = "Product not found." });
+            }
+
+            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == request.CategoryId);
+            if (!categoryExists)
+            {
+                return BadRequest(new { message = "Invalid category selected." });
+            }
+
+            product.Name = request.Name;
+            product.Description = request.Description;
+            product.Price = request.Price;
+            product.Stock = request.Stock;
+            product.CategoryId = request.CategoryId;
+            product.ImageUrl = request.ImageUrl;
+            product.IsFeatured = request.IsFeatured;
+            product.IsActive = request.IsActive;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Product updated successfully." });
+        }
+
+        [HttpDelete("admin/products/{id}")]
+        public async Task<IActionResult> DeactivateProduct(int id)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
+            if (product == null)
+            {
+                return NotFound(new { message = "Product not found." });
+            }
+
+            product.IsActive = false;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Product deactivated successfully." });
+        }
+
+        [HttpPut("admin/products/{id}/stock")]
+        public async Task<IActionResult> UpdateStock(int id, UpdateStockRequestDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
+            if (product == null)
+            {
+                return NotFound(new { message = "Product not found." });
+            }
+
+            product.Stock = request.Stock;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Stock updated successfully." });
         }
     }
 }
