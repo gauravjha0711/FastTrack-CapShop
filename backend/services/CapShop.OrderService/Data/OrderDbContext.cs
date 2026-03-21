@@ -12,6 +12,8 @@ namespace CapShop.OrderService.Data
         public DbSet<Cart> Carts { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
+        public DbSet<CheckoutSession> CheckoutSessions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -30,6 +32,28 @@ namespace CapShop.OrderService.Data
             modelBuilder.Entity<CartItem>()
                 .Property(i => i.UnitPrice)
                 .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Order>()
+                .Property(o => o.TotalAmount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Order>()
+                .HasMany(o => o.OrderItems)
+                .WithOne(i => i.Order)
+                .HasForeignKey(i => i.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<OrderItem>()
+                .Property(i => i.UnitPrice)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<OrderItem>()
+                .Property(i => i.LineTotal)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<CheckoutSession>()
+                .HasIndex(c => c.UserId)
+                .IsUnique();
         }
     }
 }

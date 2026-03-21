@@ -283,22 +283,304 @@ namespace CapShop.OrderService.Controllers
                 });
             }
 
+            var session = await _context.CheckoutSessions
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
+            if (session == null)
+            {
+                session = new CheckoutSession
+                {
+                    UserId = userId
+                };
+
+                _context.CheckoutSessions.Add(session);
+            }
+
+            session.FullName = request.FullName;
+            session.Phone = request.Phone;
+            session.AddressLine = request.AddressLine;
+            session.City = request.City;
+            session.State = request.State;
+            session.Pincode = request.Pincode;
+            session.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
             var totalAmount = cart.Items.Sum(i => i.UnitPrice * i.Quantity);
 
             return Ok(new
             {
-                message = "Checkout started successfully.",
+                message = "Checkout address saved successfully.",
                 nextStep = "Delivery",
-                shippingAddress = request,
                 cartTotal = totalAmount
             });
         }
 
         [Authorize(Roles = "Customer")]
-        [HttpGet("my")]
-        public IActionResult GetMyOrders()
+        [HttpPost("payment/simulate")]
+        public async Task<IActionResult> SimulatePayment(PaymentSimulationRequestDto request)
         {
-            return Ok(new List<object>());
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userId = GetCurrentUserId();
+
+            var session = await _context.CheckoutSessions
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
+            if (session == null)
+            {
+                return BadRequest(new
+                {
+                    message = "Checkout session not found. Complete address step first."
+                });
+            }
+
+            session.PaymentMethod = request.PaymentMethod;
+            session.PaymentStatus = request.SimulateSuccess ? "Success" : "Failed";
+            session.PaymentReference = request.SimulateSuccess
+                ? $"PAY-{Guid.NewGuid().ToString("N")[..10].ToUpper()}"
+                : null;
+            session.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = request.SimulateSuccess
+                    ? "Payment simulated successfully."
+                    : "Payment simulation failed.",
+                paymentStatus = session.PaymentStatus,
+                paymentReference = session.PaymentReference
+            });
+        }
+
+        [Authorize(Roles = "Customer")]
+        [HttpPost("place")]
+        public async Task<IActionResult> PlaceOrder(PlaceOrderRequestDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userId = GetCurrentUserId();
+
+            var cart = await _context.Carts
+                .Include(c => c.Items)
+                .FirstOrDefaultAsync(c => c.UserId == userId);
+
+            if (cart == null || !cart.Items.Any())
+            {
+                return BadRequest(new
+                {
+                    message = "Cart is empty. Cannot place order."
+                });
+            }
+
+            var session = await _context.CheckoutSessions
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
+            if (session == null)
+            {
+                return BadRequest(new
+                {
+                    message = "Checkout session not found. Complete checkout steps first."
+                });
+            }
+
+            if (!string.Equals(session.PaymentStatus, "Success", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    message = "Payment is not successful. Cannot place order."
+                });
+            }
+
+            foreach (var item in cart.Items)
+            {
+                var latestProduct = await _catalogClientService.GetProductByIdAsync(item.ProductId);
+
+                if (latestProduct == null)
+                {
+                    return BadRequest(new
+                    {
+                        message = $"Product not found for product id {item.ProductId}."
+                    });
+                }
+
+                if (latestProduct.Stock < item.Quantity)
+                {
+                    return BadRequest(new
+                    {
+                        message = $"Insufficient stock for product {item.ProductName}."
+                    });
+                }
+            }
+
+            foreach (var item in cart.Items)
+            {
+                var reduced = await _catalogClientService.ReduceStockAsync(item.ProductId, item.Quantity);
+
+                if (!reduced)
+                {
+                    return BadRequest(new
+                    {
+                        message = $"Failed to reduce stock for product {item.ProductName}."
+                    });
+                }
+            }
+
+            var order = new Order
+            {
+                UserId = userId,
+                TotalAmount = cart.Items.Sum(i => i.UnitPrice * i.Quantity),
+                Status = "Paid",
+                PaymentMethod = session.PaymentMethod,
+                PaymentStatus = session.PaymentStatus,
+                DeliveryOption = request.DeliveryOption,
+                FullName = session.FullName,
+                Phone = session.Phone,
+                AddressLine = session.AddressLine,
+                City = session.City,
+                State = session.State,
+                Pincode = session.Pincode,
+                PaymentReference = session.PaymentReference,
+                OrderDate = DateTime.UtcNow,
+                OrderItems = cart.Items.Select(i => new OrderItem
+                {
+                    ProductId = i.ProductId,
+                    ProductName = i.ProductName,
+                    UnitPrice = i.UnitPrice,
+                    Quantity = i.Quantity,
+                    LineTotal = i.UnitPrice * i.Quantity,
+                    ProductImageUrl = i.ProductImageUrl
+                }).ToList()
+            };
+
+            _context.Orders.Add(order);
+
+            _context.CartItems.RemoveRange(cart.Items);
+            _context.CheckoutSessions.Remove(session);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Order placed successfully.",
+                orderId = order.Id
+            });
+        }
+
+        [Authorize(Roles = "Customer")]
+        [HttpGet("my")]
+        public async Task<IActionResult> GetMyOrders()
+        {
+            var userId = GetCurrentUserId();
+
+            var orders = await _context.Orders
+                .Include(o => o.OrderItems)
+                .Where(o => o.UserId == userId)
+                .OrderByDescending(o => o.OrderDate)
+                .Select(o => new OrderSummaryDto
+                {
+                    Id = o.Id,
+                    OrderDate = o.OrderDate,
+                    TotalAmount = o.TotalAmount,
+                    Status = o.Status,
+                    PaymentMethod = o.PaymentMethod,
+                    DeliveryOption = o.DeliveryOption,
+                    TotalItems = o.OrderItems.Count
+                })
+                .ToListAsync();
+
+            return Ok(orders);
+        }
+
+        [Authorize(Roles = "Customer")]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetOrderById(int id)
+        {
+            var userId = GetCurrentUserId();
+
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == id && o.UserId == userId);
+
+            if (order == null)
+            {
+                return NotFound(new
+                {
+                    message = "Order not found."
+                });
+            }
+
+            var response = new OrderDetailDto
+            {
+                Id = order.Id,
+                OrderDate = order.OrderDate,
+                TotalAmount = order.TotalAmount,
+                Status = order.Status,
+                PaymentMethod = order.PaymentMethod,
+                PaymentStatus = order.PaymentStatus,
+                DeliveryOption = order.DeliveryOption,
+                FullName = order.FullName,
+                Phone = order.Phone,
+                AddressLine = order.AddressLine,
+                City = order.City,
+                State = order.State,
+                Pincode = order.Pincode,
+                PaymentReference = order.PaymentReference,
+                Items = order.OrderItems.Select(i => new OrderItemDto
+                {
+                    ProductId = i.ProductId,
+                    ProductName = i.ProductName,
+                    UnitPrice = i.UnitPrice,
+                    Quantity = i.Quantity,
+                    LineTotal = i.LineTotal,
+                    ProductImageUrl = i.ProductImageUrl
+                }).ToList()
+            };
+
+            return Ok(response);
+        }
+
+        [Authorize(Roles = "Customer")]
+        [HttpPut("{id}/cancel")]
+        public async Task<IActionResult> CancelOrder(int id)
+        {
+            var userId = GetCurrentUserId();
+
+            var order = await _context.Orders
+                .FirstOrDefaultAsync(o => o.Id == id && o.UserId == userId);
+
+            if (order == null)
+            {
+                return NotFound(new
+                {
+                    message = "Order not found."
+                });
+            }
+
+            var nonCancelableStatuses = new[] { "Packed", "Shipped", "Delivered", "Cancelled" };
+
+            if (nonCancelableStatuses.Contains(order.Status, StringComparer.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    message = "Order cannot be cancelled after packed stage."
+                });
+            }
+
+            order.Status = "Cancelled";
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Order cancelled successfully."
+            });
         }
     }
 }

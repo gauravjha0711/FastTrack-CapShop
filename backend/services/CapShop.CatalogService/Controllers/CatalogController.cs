@@ -151,5 +151,43 @@ namespace CapShop.CatalogService.Controllers
 
             return Ok(product);
         }
+
+        [HttpPut("products/{id}/stock/reduce")]
+        public async Task<IActionResult> ReduceStock(int id, ReduceStockRequestDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
+
+            if (product == null)
+            {
+                return NotFound(new
+                {
+                    message = "Product not found"
+                });
+            }
+
+            if (request.Quantity > product.Stock)
+            {
+                return BadRequest(new
+                {
+                    message = "Insufficient stock"
+                });
+            }
+
+            product.Stock -= request.Quantity;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Stock reduced successfully",
+                productId = product.Id,
+                remainingStock = product.Stock
+            });
+        }
     }
 }

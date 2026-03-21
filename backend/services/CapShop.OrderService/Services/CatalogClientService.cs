@@ -23,13 +23,27 @@ namespace CapShop.OrderService.Services
                     return null;
                 }
 
-                var product = await response.Content.ReadFromJsonAsync<CatalogProductInfoDto>();
-
-                return product;
+                return await response.Content.ReadFromJsonAsync<CatalogProductInfoDto>();
             }
             catch
             {
                 return null;
+            }
+        }
+
+        public async Task<bool> ReduceStockAsync(int productId, int quantity)
+        {
+            try
+            {
+                var response = await _httpClient.PutAsJsonAsync(
+                    $"/api/Catalog/products/{productId}/stock/reduce",
+                    new ReduceStockRequestDto { Quantity = quantity });
+
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
             }
         }
     }

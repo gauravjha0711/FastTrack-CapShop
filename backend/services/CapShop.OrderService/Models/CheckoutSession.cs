@@ -1,32 +1,12 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CapShop.OrderService.Models
 {
-    public class Order
+    public class CheckoutSession
     {
         public int Id { get; set; }
 
         public int UserId { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal TotalAmount { get; set; }
-
-        [Required]
-        [MaxLength(50)]
-        public string Status { get; set; } = "Paid";
-
-        [Required]
-        [MaxLength(30)]
-        public string PaymentMethod { get; set; } = string.Empty;
-
-        [Required]
-        [MaxLength(30)]
-        public string PaymentStatus { get; set; } = "Success";
-
-        [Required]
-        [MaxLength(30)]
-        public string DeliveryOption { get; set; } = "Standard";
 
         [Required]
         [MaxLength(100)]
@@ -52,11 +32,15 @@ namespace CapShop.OrderService.Models
         [MaxLength(10)]
         public string Pincode { get; set; } = string.Empty;
 
+        [MaxLength(30)]
+        public string PaymentMethod { get; set; } = string.Empty;
+
+        [MaxLength(30)]
+        public string PaymentStatus { get; set; } = "Pending";
+
         [MaxLength(100)]
         public string? PaymentReference { get; set; }
 
-        public DateTime OrderDate { get; set; } = DateTime.UtcNow;
-
-        public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }
