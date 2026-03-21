@@ -7,6 +7,7 @@ import {
 import MainLayout from "../layouts/MainLayout";
 import AdminLayout from "../layouts/AdminLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
+import PublicRoute from "../components/PublicRoute";
 
 import HomePage from "../pages/customer/HomePage";
 import ProductsPage from "../pages/customer/ProductsPage";
@@ -48,8 +49,22 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-      { path: "login", element: <LoginPage /> },
-      { path: "signup", element: <SignupPage /> },
+      {
+        path: "login",
+        element: (
+          <PublicRoute>
+            <LoginPage />
+          </PublicRoute>
+        ),
+      },
+      {
+        path: "signup",
+        element: (
+          <PublicRoute>
+            <SignupPage />
+          </PublicRoute>
+        ),
+      },
       { path: "unauthorized", element: <UnauthorizedPage /> },
       { path: "access-denied", element: <AccessDeniedPage /> },
     ],
