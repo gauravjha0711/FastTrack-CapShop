@@ -22,6 +22,8 @@ import SignupPage from "../pages/auth/SignupPage";
 
 import DashboardPage from "../pages/admin/DashboardPage";
 import ProductManagementPage from "../pages/admin/ProductManagementPage";
+import AdminOrdersPage from "../pages/admin/AdminOrdersPage";
+import ReportsPage from "../pages/admin/ReportsPage";
 
 import NotFoundPage from "../pages/common/NotFoundPage";
 import UnauthorizedPage from "../pages/common/UnauthorizedPage";
@@ -91,6 +93,8 @@ const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <DashboardPage /> },
       { path: "products", element: <ProductManagementPage /> },
+      { path: "orders", element: <AdminOrdersPage /> },
+      { path: "reports", element: <ReportsPage /> },
     ],
   },
   {
