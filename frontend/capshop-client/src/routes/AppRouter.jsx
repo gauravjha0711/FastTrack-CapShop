@@ -7,13 +7,15 @@ import {
 import MainLayout from "../layouts/MainLayout";
 import AdminLayout from "../layouts/AdminLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
-import PublicRoute from "../components/PublicRoute";
 
 import HomePage from "../pages/customer/HomePage";
 import ProductsPage from "../pages/customer/ProductsPage";
 import ProductDetailPage from "../pages/customer/ProductDetailPage";
 import CartPage from "../pages/customer/CartPage";
 import CheckoutPage from "../pages/customer/CheckoutPage";
+import OrdersPage from "../pages/customer/OrdersPage";
+import OrderDetailPage from "../pages/customer/OrderDetailPage";
+import OrderConfirmationPage from "../pages/customer/OrderConfirmationPage";
 
 import LoginPage from "../pages/auth/LoginPage";
 import SignupPage from "../pages/auth/SignupPage";
@@ -50,21 +52,31 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "login",
+        path: "orders",
         element: (
-          <PublicRoute>
-            <LoginPage />
-          </PublicRoute>
+          <ProtectedRoute allowedRoles={["Customer"]}>
+            <OrdersPage />
+          </ProtectedRoute>
         ),
       },
       {
-        path: "signup",
+        path: "orders/:id",
         element: (
-          <PublicRoute>
-            <SignupPage />
-          </PublicRoute>
+          <ProtectedRoute allowedRoles={["Customer"]}>
+            <OrderDetailPage />
+          </ProtectedRoute>
         ),
       },
+      {
+        path: "orders/confirmation/:orderId",
+        element: (
+          <ProtectedRoute allowedRoles={["Customer"]}>
+            <OrderConfirmationPage />
+          </ProtectedRoute>
+        ),
+      },
+      { path: "login", element: <LoginPage /> },
+      { path: "signup", element: <SignupPage /> },
       { path: "unauthorized", element: <UnauthorizedPage /> },
       { path: "access-denied", element: <AccessDeniedPage /> },
     ],

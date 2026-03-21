@@ -31,9 +31,14 @@ const Navbar = () => {
             </Nav.Link>
 
             {isAuthenticated && role === "Customer" && (
-              <Nav.Link as={Link} to="/cart">
-                Cart
-              </Nav.Link>
+              <>
+                <Nav.Link as={Link} to="/cart">
+                  Cart
+                </Nav.Link>
+                <Nav.Link as={Link} to="/orders">
+                  My Orders
+                </Nav.Link>
+              </>
             )}
 
             {!isAuthenticated && (
