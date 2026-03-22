@@ -38,6 +38,7 @@ const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: "products", element: <ProductsPage /> },
       { path: "products/:id", element: <ProductDetailPage /> },
+
       {
         path: "cart",
         element: (
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
       {
         path: "checkout",
         element: (
@@ -54,6 +56,7 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
       {
         path: "orders",
         element: (
@@ -62,6 +65,7 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
       {
         path: "orders/:id",
         element: (
@@ -70,6 +74,7 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
       {
         path: "orders/confirmation/:orderId",
         element: (
@@ -78,6 +83,8 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
+      // ✅ Public Routes
       {
         path: "login",
         element: (
@@ -86,6 +93,7 @@ const router = createBrowserRouter([
           </PublicRoute>
         ),
       },
+
       {
         path: "signup",
         element: (
@@ -94,10 +102,13 @@ const router = createBrowserRouter([
           </PublicRoute>
         ),
       },
+
       { path: "unauthorized", element: <UnauthorizedPage /> },
       { path: "access-denied", element: <AccessDeniedPage /> },
     ],
   },
+
+  // ✅ Admin Routes
   {
     path: "/admin",
     element: (
@@ -112,6 +123,8 @@ const router = createBrowserRouter([
       { path: "reports", element: <ReportsPage /> },
     ],
   },
+
+  // 404
   {
     path: "*",
     element: <NotFoundPage />,
