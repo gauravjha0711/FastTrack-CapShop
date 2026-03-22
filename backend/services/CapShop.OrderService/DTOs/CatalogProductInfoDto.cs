@@ -11,5 +11,6 @@
         public int CategoryId { get; set; }
         public string CategoryName { get; set; } = string.Empty;
         public bool IsFeatured { get; set; }
+        public bool IsActive { get; set; }
     }
 }

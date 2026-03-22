@@ -6,7 +6,7 @@ namespace CapShop.AdminService.Services
     {
         Task<List<AdminOrderDto>> GetOrdersAsync();
         Task<object?> UpdateOrderStatusAsync(int id, AdminUpdateOrderStatusDto request);
-        Task<object?> GetDashboardSummaryAsync();
+        Task<OrderDashboardSummaryDto?> GetDashboardSummaryAsync();
         Task<object?> GetSalesReportAsync();
         Task<object?> GetStatusSplitReportAsync();
     }

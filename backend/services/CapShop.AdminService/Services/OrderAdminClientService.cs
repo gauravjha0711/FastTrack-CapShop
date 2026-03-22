@@ -24,9 +24,9 @@ namespace CapShop.AdminService.Services
             return await response.Content.ReadFromJsonAsync<object>();
         }
 
-        public async Task<object?> GetDashboardSummaryAsync()
+        public async Task<OrderDashboardSummaryDto?> GetDashboardSummaryAsync()
         {
-            return await _httpClient.GetFromJsonAsync<object>("/api/Orders/admin/dashboard-summary");
+            return await _httpClient.GetFromJsonAsync<OrderDashboardSummaryDto>("/api/Orders/admin/dashboard-summary");
         }
 
         public async Task<object?> GetSalesReportAsync()

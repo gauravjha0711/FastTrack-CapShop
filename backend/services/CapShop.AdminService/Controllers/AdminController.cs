@@ -25,7 +25,7 @@ namespace CapShop.AdminService.Controllers
         public async Task<IActionResult> GetDashboardSummary()
         {
             var products = await _catalogClientService.GetProductsAsync();
-            dynamic? orderSummary = await _orderClientService.GetDashboardSummaryAsync();
+            var orderSummary = await _orderClientService.GetDashboardSummaryAsync();
 
             var totalProducts = products.Count;
             var activeProducts = products.Count(p => p.IsActive);
@@ -34,10 +34,10 @@ namespace CapShop.AdminService.Controllers
             {
                 totalProducts,
                 activeProducts,
-                totalOrders = orderSummary?.totalOrders ?? 0,
-                pendingOrders = orderSummary?.pendingOrders ?? 0,
-                totalSales = orderSummary?.totalSales ?? 0,
-                recentOrders = orderSummary?.recentOrders ?? new List<object>()
+                totalOrders = orderSummary?.TotalOrders ?? 0,
+                pendingOrders = orderSummary?.PendingOrders ?? 0,
+                totalSales = orderSummary?.TotalSales ?? 0,
+                recentOrders = orderSummary?.RecentOrders ?? new List<RecentOrderDto>()
             });
         }
 
