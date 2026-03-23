@@ -6,6 +6,7 @@ import {
   getUserName,
   getUserRole,
   saveAuthData,
+  updateStoredName,
 } from "../utils/tokenHelper";
 
 const AuthContext = createContext();
@@ -43,6 +44,11 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  const updateName = (newName) => {
+    updateStoredName(newName);
+    setName(newName);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -53,6 +59,7 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated,
         login,
         logout,
+        updateName,
       }}
     >
       {children}

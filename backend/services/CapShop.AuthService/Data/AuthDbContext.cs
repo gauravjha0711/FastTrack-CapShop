@@ -21,6 +21,10 @@ namespace CapShop.AuthService.Data
                 .IsUnique();
 
             modelBuilder.Entity<User>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
+            modelBuilder.Entity<User>()
                 .Property(u => u.RoleName)
                 .HasDefaultValue("Customer");
         }

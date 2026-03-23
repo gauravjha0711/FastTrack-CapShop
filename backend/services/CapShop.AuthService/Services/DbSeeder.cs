@@ -19,6 +19,7 @@ namespace CapShop.AuthService.Services
             {
                 var adminUser = new User
                 {
+                    Username = "admin",
                     FullName = "System Admin",
                     Email = "admin@capshop.com",
                     Phone = "9999999999",

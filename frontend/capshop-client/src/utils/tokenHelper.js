@@ -10,6 +10,10 @@ export const getUserRole = () => localStorage.getItem("capshop_role");
 export const getUserId = () => localStorage.getItem("capshop_userId");
 export const getUserName = () => localStorage.getItem("capshop_name");
 
+export const updateStoredName = (name) => {
+  localStorage.setItem("capshop_name", name);
+};
+
 export const clearAuthData = () => {
   localStorage.removeItem("capshop_token");
   localStorage.removeItem("capshop_role");
