@@ -17,6 +17,7 @@ import CheckoutPage from "../pages/customer/CheckoutPage";
 import OrdersPage from "../pages/customer/OrdersPage";
 import OrderDetailPage from "../pages/customer/OrderDetailPage";
 import OrderConfirmationPage from "../pages/customer/OrderConfirmationPage";
+import UserDashboardPage from "../pages/customer/UserDashboardPage";
 
 import LoginPage from "../pages/auth/LoginPage";
 import SignupPage from "../pages/auth/SignupPage";
@@ -36,6 +37,7 @@ const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       { index: true, element: <HomePage /> },
+
       { path: "products", element: <ProductsPage /> },
       { path: "products/:id", element: <ProductDetailPage /> },
 
@@ -84,6 +86,16 @@ const router = createBrowserRouter([
         ),
       },
 
+      // ✅ My Account Route
+      {
+        path: "account",
+        element: (
+          <ProtectedRoute allowedRoles={["Customer"]}>
+            <UserDashboardPage />
+          </ProtectedRoute>
+        ),
+      },
+
       // ✅ Public Routes
       {
         path: "login",
@@ -124,7 +136,7 @@ const router = createBrowserRouter([
     ],
   },
 
-  // 404
+  // ✅ 404 Route
   {
     path: "*",
     element: <NotFoundPage />,

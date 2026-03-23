@@ -7,6 +7,7 @@ const SignupPage = () => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
+    username: "",
     fullName: "",
     email: "",
     password: "",
@@ -23,6 +24,11 @@ const SignupPage = () => {
   };
 
   const validateForm = () => {
+    if (!formData.username.trim()) {
+      alert("Username is required");
+      return false;
+    }
+
     if (!formData.fullName.trim()) {
       alert("Full name is required");
       return false;
@@ -73,6 +79,16 @@ const SignupPage = () => {
           <h2 className="mb-4 text-center">Signup</h2>
 
           <Form onSubmit={handleSubmit}>
+            <Form.Group className="mb-3">
+              <Form.Label>Username</Form.Label>
+              <Form.Control
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="Enter username"
+              />
+            </Form.Group>
+
             <Form.Group className="mb-3">
               <Form.Label>Full Name</Form.Label>
               <Form.Control

@@ -38,6 +38,9 @@ const Navbar = () => {
                 <Nav.Link as={Link} to="/orders">
                   My Orders
                 </Nav.Link>
+                <Nav.Link as={Link} to="/account">
+                  My Account
+                </Nav.Link>
               </>
             )}
 
