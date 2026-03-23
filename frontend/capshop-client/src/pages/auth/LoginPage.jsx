@@ -53,13 +53,6 @@ const LoginPage = () => {
     }
   };
 
-  const fillAdminDemo = () => {
-    setFormData({
-      email: "admin@capshop.com",
-      password: "Admin@123",
-    });
-  };
-
   return (
     <Row className="justify-content-center mt-5">
       <Col md={6}>
@@ -89,17 +82,8 @@ const LoginPage = () => {
               />
             </Form.Group>
 
-            <Button type="submit" className="w-100 mb-2" disabled={loading}>
+            <Button type="submit" className="w-100" disabled={loading}>
               {loading ? "Logging in..." : "Login"}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline-dark"
-              className="w-100"
-              onClick={fillAdminDemo}
-            >
-              Fill Admin Demo Credentials
             </Button>
           </Form>
         </Card>
