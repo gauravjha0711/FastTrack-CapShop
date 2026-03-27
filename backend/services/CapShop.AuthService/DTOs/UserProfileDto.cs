@@ -13,5 +13,7 @@
         public string? State { get; set; }
         public string? Pincode { get; set; }
         public string RoleName { get; set; } = string.Empty;
+        public bool IsEmailVerified { get; set; }
+        public bool TwoFactorEnabled { get; set; }
     }
 }

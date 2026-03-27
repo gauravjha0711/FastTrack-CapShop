@@ -45,6 +45,46 @@ namespace CapShop.AuthService.Models
 
         public bool IsActive { get; set; } = true;
 
+        public bool IsEmailVerified { get; set; } = false;
+
+        [MaxLength(10)]
+        public string? EmailVerificationOtp { get; set; }
+
+        public DateTime? EmailVerificationOtpExpiresAt { get; set; }
+
+        [MaxLength(10)]
+        public string? LoginOtp { get; set; }
+
+        public DateTime? LoginOtpExpiresAt { get; set; }
+
+        [MaxLength(100)]
+        public string? PendingLoginToken { get; set; }
+
+        public DateTime? PendingLoginTokenExpiresAt { get; set; }
+
+        public bool TwoFactorEnabled { get; set; } = false;
+
+        [MaxLength(100)]
+        public string? AuthenticatorSecretKey { get; set; }
+
+        [MaxLength(100)]
+        public string? PendingAuthenticatorSecret { get; set; }
+
+        [MaxLength(100)]
+        public string? PasswordResetChallengeToken { get; set; }
+
+        public DateTime? PasswordResetChallengeExpiresAt { get; set; }
+
+        [MaxLength(10)]
+        public string? PasswordResetOtp { get; set; }
+
+        public DateTime? PasswordResetOtpExpiresAt { get; set; }
+
+        [MaxLength(100)]
+        public string? PasswordResetToken { get; set; }
+
+        public DateTime? PasswordResetTokenExpiresAt { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }
