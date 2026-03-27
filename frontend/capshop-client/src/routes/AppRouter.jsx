@@ -21,6 +21,7 @@ import UserDashboardPage from "../pages/customer/UserDashboardPage";
 
 import LoginPage from "../pages/auth/LoginPage";
 import SignupPage from "../pages/auth/SignupPage";
+import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
 
 import DashboardPage from "../pages/admin/DashboardPage";
 import ProductManagementPage from "../pages/admin/ProductManagementPage";
@@ -37,10 +38,8 @@ const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       { index: true, element: <HomePage /> },
-
       { path: "products", element: <ProductsPage /> },
       { path: "products/:id", element: <ProductDetailPage /> },
-
       {
         path: "cart",
         element: (
@@ -49,7 +48,6 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-
       {
         path: "checkout",
         element: (
@@ -58,7 +56,6 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-
       {
         path: "orders",
         element: (
@@ -67,7 +64,6 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-
       {
         path: "orders/:id",
         element: (
@@ -76,7 +72,6 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-
       {
         path: "orders/confirmation/:orderId",
         element: (
@@ -85,8 +80,6 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-
-      // ✅ My Account Route
       {
         path: "account",
         element: (
@@ -95,8 +88,6 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-
-      // ✅ Public Routes
       {
         path: "login",
         element: (
@@ -105,7 +96,6 @@ const router = createBrowserRouter([
           </PublicRoute>
         ),
       },
-
       {
         path: "signup",
         element: (
@@ -114,13 +104,18 @@ const router = createBrowserRouter([
           </PublicRoute>
         ),
       },
-
+      {
+        path: "forgot-password",
+        element: (
+          <PublicRoute>
+            <ForgotPasswordPage />
+          </PublicRoute>
+        ),
+      },
       { path: "unauthorized", element: <UnauthorizedPage /> },
       { path: "access-denied", element: <AccessDeniedPage /> },
     ],
   },
-
-  // ✅ Admin Routes
   {
     path: "/admin",
     element: (
@@ -135,8 +130,6 @@ const router = createBrowserRouter([
       { path: "reports", element: <ReportsPage /> },
     ],
   },
-
-  // ✅ 404 Route
   {
     path: "*",
     element: <NotFoundPage />,

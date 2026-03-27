@@ -1,72 +1,58 @@
 import React, { useState } from "react";
 import { Button, Card, Col, Form, Row } from "react-bootstrap";
-import axiosInstance from "../../services/axiosInstance";
 import { useNavigate } from "react-router-dom";
+import { signupUser, verifySignupOtp } from "../../services/authService";
 
 const SignupPage = () => {
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
+  const [step, setStep] = useState(1);
+  const [emailForOtp, setEmailForOtp] = useState("");
+  const [signupForm, setSignupForm] = useState({
     username: "",
     fullName: "",
     email: "",
     password: "",
     phone: "",
   });
-
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData((prev) => ({
+    setSignupForm((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
   };
 
-  const validateForm = () => {
-    if (!formData.username.trim()) {
-      alert("Username is required");
-      return false;
-    }
-
-    if (!formData.fullName.trim()) {
-      alert("Full name is required");
-      return false;
-    }
-
-    if (!formData.email.trim()) {
-      alert("Email is required");
-      return false;
-    }
-
-    if (!formData.phone.trim()) {
-      alert("Phone is required");
-      return false;
-    }
-
-    if (formData.password.length < 6) {
-      alert("Password must be at least 6 characters");
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) return;
 
     try {
       setLoading(true);
+      const response = await signupUser(signupForm);
+      setEmailForOtp(response.email || signupForm.email);
+      alert(response.message || "OTP sent to your email.");
+      setStep(2);
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Signup failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      await axiosInstance.post("/gateway/auth/signup", formData);
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
 
-      alert("Signup successful. Please login.");
+    try {
+      setLoading(true);
+      const response = await verifySignupOtp(emailForOtp, otp);
+      alert(response.message || "Email verified successfully.");
       navigate("/login");
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Signup failed");
+      alert(error.response?.data?.message || "OTP verification failed.");
     } finally {
       setLoading(false);
     }
@@ -76,65 +62,94 @@ const SignupPage = () => {
     <Row className="justify-content-center mt-5">
       <Col md={7}>
         <Card className="p-4 card-shadow">
-          <h2 className="mb-4 text-center">Signup</h2>
+          {step === 1 ? (
+            <>
+              <h2 className="mb-4 text-center">Signup</h2>
+              <p className="text-muted text-center">
+                Create your account. After signup, you will verify your email using OTP.
+              </p>
 
-          <Form onSubmit={handleSubmit}>
-            <Form.Group className="mb-3">
-              <Form.Label>Username</Form.Label>
-              <Form.Control
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                placeholder="Enter username"
-              />
-            </Form.Group>
+              <Form onSubmit={handleSignup}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Username</Form.Label>
+                  <Form.Control
+                    name="username"
+                    value={signupForm.username}
+                    onChange={handleChange}
+                    placeholder="Enter username"
+                  />
+                </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Full Name</Form.Label>
-              <Form.Control
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleChange}
-                placeholder="Enter full name"
-              />
-            </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Full Name</Form.Label>
+                  <Form.Control
+                    name="fullName"
+                    value={signupForm.fullName}
+                    onChange={handleChange}
+                    placeholder="Enter full name"
+                  />
+                </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Email</Form.Label>
-              <Form.Control
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Enter email"
-              />
-            </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Email</Form.Label>
+                  <Form.Control
+                    name="email"
+                    type="email"
+                    value={signupForm.email}
+                    onChange={handleChange}
+                    placeholder="Enter email"
+                  />
+                </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Phone</Form.Label>
-              <Form.Control
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="Enter phone number"
-              />
-            </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Phone</Form.Label>
+                  <Form.Control
+                    name="phone"
+                    value={signupForm.phone}
+                    onChange={handleChange}
+                    placeholder="Enter phone number"
+                  />
+                </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Password</Form.Label>
-              <Form.Control
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Enter password"
-              />
-            </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Password</Form.Label>
+                  <Form.Control
+                    name="password"
+                    type="password"
+                    value={signupForm.password}
+                    onChange={handleChange}
+                    placeholder="Enter password"
+                  />
+                </Form.Group>
 
-            <Button type="submit" className="w-100" disabled={loading}>
-              {loading ? "Creating Account..." : "Create Account"}
-            </Button>
-          </Form>
+                <Button type="submit" className="w-100" disabled={loading}>
+                  {loading ? "Sending OTP..." : "Signup & Send OTP"}
+                </Button>
+              </Form>
+            </>
+          ) : (
+            <>
+              <h2 className="mb-4 text-center">Verify Signup OTP</h2>
+              <p className="text-muted text-center">
+                We have sent an OTP to <strong>{emailForOtp}</strong>. Enter it below to complete signup.
+              </p>
+
+              <Form onSubmit={handleVerifyOtp}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Email OTP</Form.Label>
+                  <Form.Control
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="Enter 6-digit OTP"
+                  />
+                </Form.Group>
+
+                <Button type="submit" className="w-100" disabled={loading}>
+                  {loading ? "Verifying..." : "Verify OTP"}
+                </Button>
+              </Form>
+            </>
+          )}
         </Card>
       </Col>
     </Row>

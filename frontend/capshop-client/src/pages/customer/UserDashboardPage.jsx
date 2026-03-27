@@ -12,6 +12,8 @@ import {
 } from "react-bootstrap";
 import {
   changeMyPassword,
+  enableAuthenticator,
+  getAuthenticatorSetup,
   getMyProfile,
   updateMyProfile,
 } from "../../services/authService";
@@ -40,9 +42,14 @@ const UserDashboardPage = () => {
     confirmPassword: "",
   });
 
+  const [authenticatorSetup, setAuthenticatorSetup] = useState(null);
+  const [authenticatorOtp, setAuthenticatorOtp] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [loadingAuthenticator, setLoadingAuthenticator] = useState(false);
+  const [enablingAuthenticator, setEnablingAuthenticator] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -175,6 +182,35 @@ const UserDashboardPage = () => {
     }
   };
 
+  const handleLoadAuthenticatorSetup = async () => {
+    try {
+      setLoadingAuthenticator(true);
+      const data = await getAuthenticatorSetup();
+      setAuthenticatorSetup(data);
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Authenticator setup load failed.");
+    } finally {
+      setLoadingAuthenticator(false);
+    }
+  };
+
+  const handleEnableAuthenticator = async () => {
+    try {
+      setEnablingAuthenticator(true);
+      const response = await enableAuthenticator(authenticatorOtp);
+      alert(response.message || "Authenticator enabled successfully.");
+      setAuthenticatorOtp("");
+      await fetchProfile();
+      await handleLoadAuthenticatorSetup();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Authenticator enable failed.");
+    } finally {
+      setEnablingAuthenticator(false);
+    }
+  };
+
   const hasAddress =
     profileForm.addressLine ||
     profileForm.city ||
@@ -211,32 +247,14 @@ const UserDashboardPage = () => {
               <h4 className="mb-1">{profile?.fullName}</h4>
               <p className="text-muted mb-2">@{profile?.username}</p>
 
-              <Badge bg="dark" className="mb-3">
+              <Badge bg="dark" className="mb-2">
                 {profile?.roleName}
               </Badge>
 
-              <div className="text-start mt-3">
-                <p className="mb-2">
-                  <strong>Email:</strong>
-                  <br />
-                  <span className="text-muted">{profile?.email}</span>
-                </p>
-
-                <p className="mb-2">
-                  <strong>Phone:</strong>
-                  <br />
-                  <span className="text-muted">
-                    {profile?.phone || "Not added"}
-                  </span>
-                </p>
-
-                <p className="mb-0">
-                  <strong>Address Status:</strong>
-                  <br />
-                  <span className="text-muted">
-                    {hasAddress ? "Saved" : "Not added yet"}
-                  </span>
-                </p>
+              <div className="mt-2">
+                <Badge bg={profile?.TwoFactorEnabled ? "success" : "secondary"}>
+                  {profile?.TwoFactorEnabled ? "2FA Enabled" : "2FA Not Enabled"}
+                </Badge>
               </div>
             </Card.Body>
           </Card>
@@ -268,6 +286,14 @@ const UserDashboardPage = () => {
                 >
                   Change Password
                 </Button>
+
+                <Button
+                  variant={activeSection === "security" ? "dark" : "outline-secondary"}
+                  size="sm"
+                  onClick={() => setActiveSection("security")}
+                >
+                  Two-Factor Security
+                </Button>
               </div>
             </Card.Body>
           </Card>
@@ -278,8 +304,7 @@ const UserDashboardPage = () => {
             <div>
               <h2 className="mb-1">My Account</h2>
               <p className="text-muted mb-0">
-                This is your account dashboard. You can change your profile
-                details, manage your address, and update your password from here.
+                This is your account dashboard. You can change your profile details, manage your address, update your password, and enable two-factor authentication from here.
               </p>
             </div>
           </div>
@@ -290,10 +315,7 @@ const UserDashboardPage = () => {
           {activeSection === "profile" && (
             <Card className="border-0 shadow-sm mb-4">
               <Card.Body className="p-4">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                  <h4 className="mb-0">Personal Information</h4>
-                  <Badge bg="primary">Editable</Badge>
-                </div>
+                <h4 className="mb-4">Personal Information</h4>
 
                 <Form onSubmit={handleSaveProfile}>
                   <Row>
@@ -351,9 +373,6 @@ const UserDashboardPage = () => {
                       onChange={handleProfileChange}
                       placeholder="Paste your profile image URL"
                     />
-                    <Form.Text className="text-muted">
-                      You can use an image URL to show your profile picture here.
-                    </Form.Text>
                   </Form.Group>
 
                   <div className="text-end">
@@ -369,10 +388,7 @@ const UserDashboardPage = () => {
           {activeSection === "address" && (
             <Card className="border-0 shadow-sm mb-4">
               <Card.Body className="p-4">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                  <h4 className="mb-0">Saved Address</h4>
-                  <Badge bg="success">{hasAddress ? "Saved" : "Add Now"}</Badge>
-                </div>
+                <h4 className="mb-4">Saved Address</h4>
 
                 <Form onSubmit={handleSaveProfile}>
                   <Form.Group className="mb-3">
@@ -434,14 +450,9 @@ const UserDashboardPage = () => {
           )}
 
           {activeSection === "password" && (
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm mb-4">
               <Card.Body className="p-4">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                  <h4 className="mb-0">Change Password</h4>
-                  <Badge bg="warning" text="dark">
-                    Secure
-                  </Badge>
-                </div>
+                <h4 className="mb-4">Change Password</h4>
 
                 <Form onSubmit={handleChangePassword}>
                   <Form.Group className="mb-3">
@@ -484,15 +495,69 @@ const UserDashboardPage = () => {
                   </Row>
 
                   <div className="text-end">
-                    <Button
-                      variant="dark"
-                      type="submit"
-                      disabled={changingPassword}
-                    >
+                    <Button variant="dark" type="submit" disabled={changingPassword}>
                       {changingPassword ? "Changing..." : "Change Password"}
                     </Button>
                   </div>
                 </Form>
+              </Card.Body>
+            </Card>
+          )}
+
+          {activeSection === "security" && (
+            <Card className="border-0 shadow-sm mb-4">
+              <Card.Body className="p-4">
+                <h4 className="mb-3">Two-Factor Authentication</h4>
+                <p className="text-muted">
+                  Enable Microsoft Authenticator so that during login you can choose Authenticator OTP instead of only Email OTP.
+                </p>
+
+                {profile?.TwoFactorEnabled ? (
+                  <Alert variant="success">
+                    Authenticator is already enabled for your account.
+                  </Alert>
+                ) : (
+                  <>
+                    {!authenticatorSetup && (
+                      <Button onClick={handleLoadAuthenticatorSetup} disabled={loadingAuthenticator}>
+                        {loadingAuthenticator ? "Loading..." : "Generate QR Code"}
+                      </Button>
+                    )}
+
+                    {authenticatorSetup && !authenticatorSetup.isAlreadyEnabled && (
+                      <div className="mt-4">
+                        <p><strong>Step 1:</strong> Open Microsoft Authenticator app.</p>
+                        <p><strong>Step 2:</strong> Scan the QR code below.</p>
+                        <p><strong>Step 3:</strong> Enter the OTP shown in app to enable it.</p>
+
+                        <div className="text-center mb-3">
+                          <img
+                            src={`data:image/png;base64,${authenticatorSetup.qrCodeImageBase64}`}
+                            alt="Authenticator QR"
+                            style={{ maxWidth: "220px" }}
+                          />
+                        </div>
+
+                        <Alert variant="secondary">
+                          <strong>Manual Key:</strong> {authenticatorSetup.manualKey}
+                        </Alert>
+
+                        <Form.Group className="mb-3">
+                          <Form.Label>Authenticator OTP</Form.Label>
+                          <Form.Control
+                            value={authenticatorOtp}
+                            onChange={(e) => setAuthenticatorOtp(e.target.value)}
+                            placeholder="Enter 6-digit authenticator code"
+                          />
+                        </Form.Group>
+
+                        <Button onClick={handleEnableAuthenticator} disabled={enablingAuthenticator}>
+                          {enablingAuthenticator ? "Enabling..." : "Enable Authenticator"}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
               </Card.Body>
             </Card>
           )}
