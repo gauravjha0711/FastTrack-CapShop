@@ -16,15 +16,24 @@ namespace CapShop.AuthService.Controllers
         private readonly AuthDbContext _context;
         private readonly IPasswordHasherService _passwordHasher;
         private readonly IJwtTokenService _jwtTokenService;
+        private readonly EmailService _emailService;
+        private readonly OtpService _otpService;
+        private readonly AuthenticatorService _authenticatorService;
 
         public AuthController(
             AuthDbContext context,
             IPasswordHasherService passwordHasher,
-            IJwtTokenService jwtTokenService)
+            IJwtTokenService jwtTokenService,
+            EmailService emailService,
+            OtpService otpService,
+            AuthenticatorService authenticatorService)
         {
             _context = context;
             _passwordHasher = passwordHasher;
             _jwtTokenService = jwtTokenService;
+            _emailService = emailService;
+            _otpService = otpService;
+            _authenticatorService = authenticatorService;
         }
 
         private int GetCurrentUserId()
@@ -40,13 +49,96 @@ namespace CapShop.AuthService.Controllers
             return int.Parse(userIdClaim);
         }
 
+        private AuthResponseDto BuildAuthResponse(User user)
+        {
+            var token = _jwtTokenService.GenerateToken(user);
+
+            return new AuthResponseDto
+            {
+                Token = token,
+                Role = user.RoleName,
+                UserId = user.Id,
+                Name = user.FullName,
+                Username = user.Username,
+                Email = user.Email
+            };
+        }
+
+        private string BuildOtpEmailHtml(string heading, string otp)
+        {
+            return $@"
+<html>
+<head>
+<style>
+body {{
+    margin:0;
+    padding:0;
+    background-color:#f4f6f9;
+    font-family: Arial, Helvetica, sans-serif;
+}}
+.main {{
+    max-width:600px;
+    margin:30px auto;
+    background:#ffffff;
+    border-radius:12px;
+    border:1px solid #e5e5e5;
+    overflow:hidden;
+}}
+.header {{
+    background:#0d6efd;
+    color:white;
+    padding:20px;
+    font-size:22px;
+    text-align:center;
+    font-weight:bold;
+}}
+.content {{
+    padding:30px;
+    text-align:center;
+}}
+.otp {{
+    margin:20px auto;
+    font-size:30px;
+    letter-spacing:6px;
+    font-weight:bold;
+    color:#0d6efd;
+    border:2px dashed #0d6efd;
+    padding:15px 25px;
+    display:inline-block;
+    border-radius:8px;
+    background:#f8fbff;
+}}
+.footer {{
+    background:#f7f7f7;
+    padding:15px;
+    font-size:12px;
+    color:#666;
+    text-align:center;
+}}
+</style>
+</head>
+<body>
+<div class='main'>
+    <div class='header'>{heading}</div>
+    <div class='content'>
+        <p>Your OTP code is:</p>
+        <div class='otp'>{otp}</div>
+        <p>This OTP is valid for the next <b>5 minutes</b>.</p>
+        <p>Please do not share this code with anyone.</p>
+    </div>
+    <div class='footer'>
+        © 2026 CapShop Security
+    </div>
+</div>
+</body>
+</html>";
+        }
+
         [HttpPost("signup")]
         public async Task<IActionResult> Signup(RegisterRequestDto request)
         {
             if (!ModelState.IsValid)
-            {
                 return BadRequest(ModelState);
-            }
 
             var normalizedEmail = request.Email.Trim().ToLower();
             var normalizedUsername = request.Username.Trim().ToLower();
@@ -55,23 +147,15 @@ namespace CapShop.AuthService.Controllers
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
 
             if (existingEmail != null)
-            {
-                return BadRequest(new
-                {
-                    message = "Email already registered"
-                });
-            }
+                return BadRequest(new { message = "Email already registered" });
 
             var existingUsername = await _context.Users
                 .FirstOrDefaultAsync(u => u.Username.ToLower() == normalizedUsername);
 
             if (existingUsername != null)
-            {
-                return BadRequest(new
-                {
-                    message = "Username already taken"
-                });
-            }
+                return BadRequest(new { message = "Username already taken" });
+
+            var otp = _otpService.GenerateOtp();
 
             var user = new User
             {
@@ -82,62 +166,351 @@ namespace CapShop.AuthService.Controllers
                 PasswordHash = _passwordHasher.HashPassword(request.Password),
                 RoleName = "Customer",
                 IsActive = true,
+                IsEmailVerified = false,
+                EmailVerificationOtp = otp,
+                EmailVerificationOtpExpiresAt = DateTime.UtcNow.AddMinutes(5),
                 CreatedAt = DateTime.UtcNow
             };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
+            await _emailService.SendEmailAsync(
+                user.Email,
+                "CapShop Signup Verification OTP",
+                BuildOtpEmailHtml("CapShop Signup Verification", otp));
+
             return Ok(new
             {
-                message = "Signup successful"
+                message = "Signup initiated. OTP sent to your email.",
+                email = user.Email
             });
         }
 
-        [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginRequestDto request)
+        [HttpPost("signup/verify-otp")]
+        public async Task<IActionResult> VerifySignupOtp(VerifySignupOtpDto request)
         {
             if (!ModelState.IsValid)
-            {
                 return BadRequest(ModelState);
-            }
 
             var normalizedEmail = request.Email.Trim().ToLower();
 
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == normalizedEmail && u.IsActive);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
             if (user == null)
+                return NotFound(new { message = "User not found." });
+
+            if (user.IsEmailVerified)
+                return Ok(new { message = "Email already verified." });
+
+            if (user.EmailVerificationOtp != request.Otp ||
+                user.EmailVerificationOtpExpiresAt == null ||
+                user.EmailVerificationOtpExpiresAt < DateTime.UtcNow)
             {
-                return BadRequest(new
+                return BadRequest(new { message = "Invalid or expired OTP." });
+            }
+
+            user.IsEmailVerified = true;
+            user.EmailVerificationOtp = null;
+            user.EmailVerificationOtpExpiresAt = null;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Email verified successfully. You can now login." });
+        }
+
+        [HttpPost("login-initiate")]
+        public async Task<IActionResult> LoginInitiate(LoginRequestDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var normalizedEmail = request.Email.Trim().ToLower();
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail && u.IsActive);
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid email or password" });
+
+            var validPassword = _passwordHasher.VerifyPassword(request.Password, user.PasswordHash);
+
+            if (!validPassword)
+                return BadRequest(new { message = "Invalid email or password" });
+
+            if (!user.IsEmailVerified)
+                return BadRequest(new { message = "Email is not verified. Please verify signup OTP first." });
+
+            user.PendingLoginToken = Guid.NewGuid().ToString("N");
+            user.PendingLoginTokenExpiresAt = DateTime.UtcNow.AddMinutes(5);
+
+            await _context.SaveChangesAsync();
+
+            var methods = new List<string> { "EmailOtp" };
+            if (user.TwoFactorEnabled && !string.IsNullOrWhiteSpace(user.AuthenticatorSecretKey))
+            {
+                methods.Add("Authenticator");
+            }
+
+            return Ok(new LoginInitiateResponseDto
+            {
+                TempLoginToken = user.PendingLoginToken,
+                AvailableMethods = methods,
+                IsAuthenticatorConfigured = user.TwoFactorEnabled,
+                Message = "Password verified. Choose your second-factor method."
+            });
+        }
+
+        [HttpPost("login/send-email-otp")]
+        public async Task<IActionResult> SendLoginEmailOtp(SendLoginEmailOtpDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.PendingLoginToken == request.TempLoginToken &&
+                u.PendingLoginTokenExpiresAt != null &&
+                u.PendingLoginTokenExpiresAt > DateTime.UtcNow);
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid or expired login session." });
+
+            var otp = _otpService.GenerateOtp();
+
+            user.LoginOtp = otp;
+            user.LoginOtpExpiresAt = DateTime.UtcNow.AddMinutes(5);
+
+            await _context.SaveChangesAsync();
+
+            await _emailService.SendEmailAsync(
+                user.Email,
+                "CapShop Login OTP",
+                BuildOtpEmailHtml("CapShop Login Verification", otp));
+
+            return Ok(new { message = "Login OTP sent to your email." });
+        }
+
+        [HttpPost("login/verify-email-otp")]
+        public async Task<IActionResult> VerifyLoginEmailOtp(VerifyLoginEmailOtpDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.PendingLoginToken == request.TempLoginToken &&
+                u.PendingLoginTokenExpiresAt != null &&
+                u.PendingLoginTokenExpiresAt > DateTime.UtcNow);
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid or expired login session." });
+
+            if (user.LoginOtp != request.Otp ||
+                user.LoginOtpExpiresAt == null ||
+                user.LoginOtpExpiresAt < DateTime.UtcNow)
+            {
+                return BadRequest(new { message = "Invalid or expired OTP." });
+            }
+
+            user.LoginOtp = null;
+            user.LoginOtpExpiresAt = null;
+            user.PendingLoginToken = null;
+            user.PendingLoginTokenExpiresAt = null;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(BuildAuthResponse(user));
+        }
+
+        [HttpPost("login/verify-authenticator")]
+        public async Task<IActionResult> VerifyLoginAuthenticator(VerifyLoginAuthenticatorDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.PendingLoginToken == request.TempLoginToken &&
+                u.PendingLoginTokenExpiresAt != null &&
+                u.PendingLoginTokenExpiresAt > DateTime.UtcNow);
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid or expired login session." });
+
+            if (!user.TwoFactorEnabled || string.IsNullOrWhiteSpace(user.AuthenticatorSecretKey))
+                return BadRequest(new { message = "Authenticator is not configured for this account." });
+
+            var validOtp = _authenticatorService.ValidateOtp(user.AuthenticatorSecretKey, request.Otp);
+
+            if (!validOtp)
+                return BadRequest(new { message = "Invalid authenticator OTP." });
+
+            user.PendingLoginToken = null;
+            user.PendingLoginTokenExpiresAt = null;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(BuildAuthResponse(user));
+        }
+
+        [HttpPost("forgot-password/request")]
+        public async Task<IActionResult> ForgotPasswordRequest(ForgotPasswordRequestDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var normalizedEmail = request.Email.Trim().ToLower();
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail && u.IsActive);
+
+            if (user == null)
+                return NotFound(new { message = "User not found." });
+
+            var challengeToken = Guid.NewGuid().ToString("N");
+            user.PasswordResetChallengeToken = challengeToken;
+            user.PasswordResetChallengeExpiresAt = DateTime.UtcNow.AddMinutes(10);
+
+            if (request.Method.Equals("Email", StringComparison.OrdinalIgnoreCase))
+            {
+                var otp = _otpService.GenerateOtp();
+                user.PasswordResetOtp = otp;
+                user.PasswordResetOtpExpiresAt = DateTime.UtcNow.AddMinutes(5);
+
+                await _context.SaveChangesAsync();
+
+                await _emailService.SendEmailAsync(
+                    user.Email,
+                    "CapShop Password Reset OTP",
+                    BuildOtpEmailHtml("CapShop Password Reset", otp));
+
+                return Ok(new
                 {
-                    message = "Invalid email or password"
+                    message = "Password reset OTP sent to your email.",
+                    challengeToken,
+                    method = "Email"
                 });
             }
 
-            var isPasswordValid = _passwordHasher.VerifyPassword(request.Password, user.PasswordHash);
-
-            if (!isPasswordValid)
+            if (request.Method.Equals("Authenticator", StringComparison.OrdinalIgnoreCase))
             {
-                return BadRequest(new
+                if (!user.TwoFactorEnabled || string.IsNullOrWhiteSpace(user.AuthenticatorSecretKey))
                 {
-                    message = "Invalid email or password"
+                    return BadRequest(new { message = "Authenticator is not configured for this account." });
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "Enter authenticator OTP to continue password reset.",
+                    challengeToken,
+                    method = "Authenticator"
                 });
             }
 
-            var token = _jwtTokenService.GenerateToken(user);
+            return BadRequest(new { message = "Invalid forgot password method." });
+        }
 
-            var response = new AuthResponseDto
+        [HttpPost("forgot-password/verify-email-otp")]
+        public async Task<IActionResult> VerifyForgotPasswordEmailOtp(VerifyForgotPasswordEmailOtpDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var normalizedEmail = request.Email.Trim().ToLower();
+
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.Email == normalizedEmail &&
+                u.PasswordResetChallengeToken == request.ChallengeToken &&
+                u.PasswordResetChallengeExpiresAt != null &&
+                u.PasswordResetChallengeExpiresAt > DateTime.UtcNow);
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid or expired reset session." });
+
+            if (user.PasswordResetOtp != request.Otp ||
+                user.PasswordResetOtpExpiresAt == null ||
+                user.PasswordResetOtpExpiresAt < DateTime.UtcNow)
             {
-                Token = token,
-                Role = user.RoleName,
-                UserId = user.Id,
-                Name = user.FullName,
-                Username = user.Username,
-                Email = user.Email
-            };
+                return BadRequest(new { message = "Invalid or expired OTP." });
+            }
 
-            return Ok(response);
+            user.PasswordResetToken = Guid.NewGuid().ToString("N");
+            user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddMinutes(10);
+            user.PasswordResetOtp = null;
+            user.PasswordResetOtpExpiresAt = null;
+            user.PasswordResetChallengeToken = null;
+            user.PasswordResetChallengeExpiresAt = null;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Verification successful. You can now reset password.",
+                resetToken = user.PasswordResetToken
+            });
+        }
+
+        [HttpPost("forgot-password/verify-authenticator")]
+        public async Task<IActionResult> VerifyForgotPasswordAuthenticator(VerifyForgotPasswordAuthenticatorDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var normalizedEmail = request.Email.Trim().ToLower();
+
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.Email == normalizedEmail &&
+                u.PasswordResetChallengeToken == request.ChallengeToken &&
+                u.PasswordResetChallengeExpiresAt != null &&
+                u.PasswordResetChallengeExpiresAt > DateTime.UtcNow);
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid or expired reset session." });
+
+            if (!user.TwoFactorEnabled || string.IsNullOrWhiteSpace(user.AuthenticatorSecretKey))
+                return BadRequest(new { message = "Authenticator is not configured for this account." });
+
+            var validOtp = _authenticatorService.ValidateOtp(user.AuthenticatorSecretKey, request.Otp);
+
+            if (!validOtp)
+                return BadRequest(new { message = "Invalid authenticator OTP." });
+
+            user.PasswordResetToken = Guid.NewGuid().ToString("N");
+            user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddMinutes(10);
+            user.PasswordResetChallengeToken = null;
+            user.PasswordResetChallengeExpiresAt = null;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Verification successful. You can now reset password.",
+                resetToken = user.PasswordResetToken
+            });
+        }
+
+        [HttpPost("forgot-password/reset")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (request.NewPassword != request.ConfirmPassword)
+                return BadRequest(new { message = "New password and confirm password do not match." });
+
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.PasswordResetToken == request.ResetToken &&
+                u.PasswordResetTokenExpiresAt != null &&
+                u.PasswordResetTokenExpiresAt > DateTime.UtcNow);
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid or expired reset token." });
+
+            user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
+            user.PasswordResetToken = null;
+            user.PasswordResetTokenExpiresAt = null;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Password reset successfully. You can now login." });
         }
 
         [Authorize]
@@ -149,14 +522,9 @@ namespace CapShop.AuthService.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
 
             if (user == null)
-            {
-                return NotFound(new
-                {
-                    message = "User not found"
-                });
-            }
+                return NotFound(new { message = "User not found" });
 
-            var profile = new UserProfileDto
+            return Ok(new UserProfileDto
             {
                 UserId = user.Id,
                 Username = user.Username,
@@ -168,10 +536,10 @@ namespace CapShop.AuthService.Controllers
                 City = user.City,
                 State = user.State,
                 Pincode = user.Pincode,
-                RoleName = user.RoleName
-            };
-
-            return Ok(profile);
+                RoleName = user.RoleName,
+                IsEmailVerified = user.IsEmailVerified,
+                TwoFactorEnabled = user.TwoFactorEnabled
+            });
         }
 
         [Authorize]
@@ -179,21 +547,14 @@ namespace CapShop.AuthService.Controllers
         public async Task<IActionResult> UpdateProfile(UpdateProfileDto request)
         {
             if (!ModelState.IsValid)
-            {
                 return BadRequest(ModelState);
-            }
 
             var userId = GetCurrentUserId();
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
 
             if (user == null)
-            {
-                return NotFound(new
-                {
-                    message = "User not found"
-                });
-            }
+                return NotFound(new { message = "User not found" });
 
             var normalizedUsername = request.Username.Trim().ToLower();
 
@@ -201,12 +562,7 @@ namespace CapShop.AuthService.Controllers
                 .FirstOrDefaultAsync(u => u.Username.ToLower() == normalizedUsername && u.Id != userId);
 
             if (existingUsername != null)
-            {
-                return BadRequest(new
-                {
-                    message = "Username already taken"
-                });
-            }
+                return BadRequest(new { message = "Username already taken" });
 
             user.Username = request.Username.Trim();
             user.FullName = request.FullName.Trim();
@@ -219,7 +575,7 @@ namespace CapShop.AuthService.Controllers
 
             await _context.SaveChangesAsync();
 
-            var profile = new UserProfileDto
+            return Ok(new UserProfileDto
             {
                 UserId = user.Id,
                 Username = user.Username,
@@ -231,10 +587,10 @@ namespace CapShop.AuthService.Controllers
                 City = user.City,
                 State = user.State,
                 Pincode = user.Pincode,
-                RoleName = user.RoleName
-            };
-
-            return Ok(profile);
+                RoleName = user.RoleName,
+                IsEmailVerified = user.IsEmailVerified,
+                TwoFactorEnabled = user.TwoFactorEnabled
+            });
         }
 
         [Authorize]
@@ -242,48 +598,96 @@ namespace CapShop.AuthService.Controllers
         public async Task<IActionResult> ChangePassword(ChangePasswordDto request)
         {
             if (!ModelState.IsValid)
-            {
                 return BadRequest(ModelState);
-            }
 
             if (request.NewPassword != request.ConfirmPassword)
-            {
-                return BadRequest(new
-                {
-                    message = "New password and confirm password do not match"
-                });
-            }
+                return BadRequest(new { message = "New password and confirm password do not match" });
 
             var userId = GetCurrentUserId();
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
 
             if (user == null)
-            {
-                return NotFound(new
-                {
-                    message = "User not found"
-                });
-            }
+                return NotFound(new { message = "User not found" });
 
-            var isOldPasswordValid = _passwordHasher.VerifyPassword(request.OldPassword, user.PasswordHash);
+            var validOldPassword = _passwordHasher.VerifyPassword(request.OldPassword, user.PasswordHash);
 
-            if (!isOldPasswordValid)
-            {
-                return BadRequest(new
-                {
-                    message = "Old password is incorrect"
-                });
-            }
+            if (!validOldPassword)
+                return BadRequest(new { message = "Old password is incorrect" });
 
             user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
 
             await _context.SaveChangesAsync();
 
-            return Ok(new
+            return Ok(new { message = "Password changed successfully" });
+        }
+
+        [Authorize]
+        [HttpGet("authenticator/setup")]
+        public async Task<IActionResult> GetAuthenticatorSetup()
+        {
+            var userId = GetCurrentUserId();
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            if (user.TwoFactorEnabled && !string.IsNullOrWhiteSpace(user.AuthenticatorSecretKey))
             {
-                message = "Password changed successfully"
+                return Ok(new AuthenticatorSetupDto
+                {
+                    IsAlreadyEnabled = true,
+                    Message = "Authenticator is already enabled for this account."
+                });
+            }
+
+            var secret = _authenticatorService.GenerateSecretKey();
+            var qrUri = _authenticatorService.GenerateQrCodeUri(user.Email, secret);
+            var qrImage = _authenticatorService.GenerateQrCodeImage(qrUri);
+
+            user.PendingAuthenticatorSecret = secret;
+            await _context.SaveChangesAsync();
+
+            return Ok(new AuthenticatorSetupDto
+            {
+                IsAlreadyEnabled = false,
+                ManualKey = secret,
+                QrCodeUri = qrUri,
+                QrCodeImageBase64 = qrImage,
+                Message = "Scan the QR code and enter OTP to enable authenticator."
             });
+        }
+
+        [Authorize]
+        [HttpPost("authenticator/enable")]
+        public async Task<IActionResult> EnableAuthenticator(EnableAuthenticatorDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = GetCurrentUserId();
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            if (string.IsNullOrWhiteSpace(user.PendingAuthenticatorSecret))
+                return BadRequest(new { message = "Authenticator setup not initiated." });
+
+            var validOtp = _authenticatorService.ValidateOtp(user.PendingAuthenticatorSecret, request.Otp);
+
+            if (!validOtp)
+                return BadRequest(new { message = "Invalid authenticator OTP." });
+
+            user.AuthenticatorSecretKey = user.PendingAuthenticatorSecret;
+            user.PendingAuthenticatorSecret = null;
+            user.TwoFactorEnabled = true;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Authenticator enabled successfully." });
         }
     }
 }

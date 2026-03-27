@@ -26,6 +26,7 @@ namespace CapShop.AuthService.Services
                     PasswordHash = passwordHasher.HashPassword("Admin@123"),
                     RoleName = "Admin",
                     IsActive = true,
+                    IsEmailVerified = true,
                     CreatedAt = DateTime.UtcNow
                 };
 
