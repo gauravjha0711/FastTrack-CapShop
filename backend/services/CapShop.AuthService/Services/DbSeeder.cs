@@ -21,7 +21,7 @@ namespace CapShop.AuthService.Services
                 {
                     Username = "admin",
                     FullName = "System Admin",
-                    Email = "admin@capshop.com",
+                    Email = "capshopadmin@gmail.com",
                     Phone = "9999999999",
                     PasswordHash = passwordHasher.HashPassword("Admin@123"),
                     RoleName = "Admin",
