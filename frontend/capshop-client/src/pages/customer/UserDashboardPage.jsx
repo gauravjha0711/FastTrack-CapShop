@@ -16,6 +16,7 @@ import {
   getAuthenticatorSetup,
   getMyProfile,
   updateMyProfile,
+  disableAuthenticator,
 } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 
@@ -50,6 +51,8 @@ const UserDashboardPage = () => {
   const [changingPassword, setChangingPassword] = useState(false);
   const [loadingAuthenticator, setLoadingAuthenticator] = useState(false);
   const [enablingAuthenticator, setEnablingAuthenticator] = useState(false);
+  const [disablingAuthenticator, setDisablingAuthenticator] = useState(false);
+
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -57,23 +60,43 @@ const UserDashboardPage = () => {
     fetchProfile();
   }, []);
 
+  const normalizeProfileData = (data) => {
+    return {
+      userId: data.userId,
+      username: data.username || "",
+      fullName: data.fullName || "",
+      email: data.email || "",
+      phone: data.phone || "",
+      avatarUrl: data.avatarUrl || "",
+      addressLine: data.addressLine || "",
+      city: data.city || "",
+      state: data.state || "",
+      pincode: data.pincode || "",
+      roleName: data.roleName || "",
+      isEmailVerified: data.isEmailVerified || false,
+      twoFactorEnabled: data.twoFactorEnabled || false,
+    };
+  };
+
   const fetchProfile = async () => {
     try {
       setLoading(true);
       setError("");
 
       const data = await getMyProfile();
-      setProfile(data);
+      const normalizedData = normalizeProfileData(data);
+
+      setProfile(normalizedData);
 
       setProfileForm({
-        username: data.username || "",
-        fullName: data.fullName || "",
-        phone: data.phone || "",
-        avatarUrl: data.avatarUrl || "",
-        addressLine: data.addressLine || "",
-        city: data.city || "",
-        state: data.state || "",
-        pincode: data.pincode || "",
+        username: normalizedData.username,
+        fullName: normalizedData.fullName,
+        phone: normalizedData.phone,
+        avatarUrl: normalizedData.avatarUrl,
+        addressLine: normalizedData.addressLine,
+        city: normalizedData.city,
+        state: normalizedData.state,
+        pincode: normalizedData.pincode,
       });
     } catch (err) {
       console.error(err);
@@ -84,16 +107,20 @@ const UserDashboardPage = () => {
   };
 
   const handleProfileChange = (e) => {
+    const { name, value } = e.target;
+
     setProfileForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
   const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+
     setPasswordForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
@@ -123,16 +150,29 @@ const UserDashboardPage = () => {
 
     try {
       setSavingProfile(true);
+      setError("");
       setSuccessMessage("");
 
       const updatedProfile = await updateMyProfile(profileForm);
+      const normalizedUpdatedProfile = normalizeProfileData(updatedProfile);
 
-      setProfile(updatedProfile);
-      updateName(updatedProfile.fullName);
+      setProfile(normalizedUpdatedProfile);
+      setProfileForm({
+        username: normalizedUpdatedProfile.username,
+        fullName: normalizedUpdatedProfile.fullName,
+        phone: normalizedUpdatedProfile.phone,
+        avatarUrl: normalizedUpdatedProfile.avatarUrl,
+        addressLine: normalizedUpdatedProfile.addressLine,
+        city: normalizedUpdatedProfile.city,
+        state: normalizedUpdatedProfile.state,
+        pincode: normalizedUpdatedProfile.pincode,
+      });
+
+      updateName(normalizedUpdatedProfile.fullName);
       setSuccessMessage("Profile successfully updated.");
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Profile update failed.");
+      setError(err.response?.data?.message || "Profile update failed.");
     } finally {
       setSavingProfile(false);
     }
@@ -163,6 +203,7 @@ const UserDashboardPage = () => {
 
     try {
       setChangingPassword(true);
+      setError("");
       setSuccessMessage("");
 
       const response = await changeMyPassword(passwordForm);
@@ -176,7 +217,7 @@ const UserDashboardPage = () => {
       setSuccessMessage(response.message || "Password successfully changed.");
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Password change failed.");
+      setError(err.response?.data?.message || "Password change failed.");
     } finally {
       setChangingPassword(false);
     }
@@ -185,30 +226,84 @@ const UserDashboardPage = () => {
   const handleLoadAuthenticatorSetup = async () => {
     try {
       setLoadingAuthenticator(true);
+      setError("");
+      setSuccessMessage("");
+
       const data = await getAuthenticatorSetup();
       setAuthenticatorSetup(data);
+
+      if (data?.isAlreadyEnabled) {
+        setSuccessMessage(data.message || "Authenticator is already enabled.");
+      }
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Authenticator setup load failed.");
+      setError(err.response?.data?.message || "Authenticator setup load failed.");
     } finally {
       setLoadingAuthenticator(false);
     }
   };
 
   const handleEnableAuthenticator = async () => {
+    if (!authenticatorOtp.trim()) {
+      alert("Please enter authenticator OTP.");
+      return;
+    }
+
     try {
       setEnablingAuthenticator(true);
-      const response = await enableAuthenticator(authenticatorOtp);
-      alert(response.message || "Authenticator enabled successfully.");
+      setError("");
+      setSuccessMessage("");
+
+      const response = await enableAuthenticator(authenticatorOtp.trim());
+
       setAuthenticatorOtp("");
+      setAuthenticatorSetup(null);
+
       await fetchProfile();
-      await handleLoadAuthenticatorSetup();
+
+      setSuccessMessage(response.message || "Authenticator enabled successfully.");
+      setActiveSection("security");
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Authenticator enable failed.");
+      setError(err.response?.data?.message || "Authenticator enable failed.");
     } finally {
       setEnablingAuthenticator(false);
     }
+  };
+
+  const handleDisableAuthenticator = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to disable two-factor authentication?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDisablingAuthenticator(true);
+      setError("");
+      setSuccessMessage("");
+
+      const response = await disableAuthenticator();
+
+      setAuthenticatorSetup(null);
+      setAuthenticatorOtp("");
+
+      await fetchProfile();
+
+      setSuccessMessage(response.message || "Authenticator disabled successfully.");
+      setActiveSection("security");
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || "Failed to disable authenticator.");
+    } finally {
+      setDisablingAuthenticator(false);
+    }
+  };
+
+  const handleGenerateNewQr = async () => {
+    setAuthenticatorSetup(null);
+    setAuthenticatorOtp("");
+    await handleLoadAuthenticatorSetup();
   };
 
   const hasAddress =
@@ -252,8 +347,8 @@ const UserDashboardPage = () => {
               </Badge>
 
               <div className="mt-2">
-                <Badge bg={profile?.TwoFactorEnabled ? "success" : "secondary"}>
-                  {profile?.TwoFactorEnabled ? "2FA Enabled" : "2FA Not Enabled"}
+                <Badge bg={profile?.twoFactorEnabled ? "success" : "secondary"}>
+                  {profile?.twoFactorEnabled ? "2FA Enabled" : "2FA Not Enabled"}
                 </Badge>
               </div>
             </Card.Body>
@@ -439,6 +534,12 @@ const UserDashboardPage = () => {
                     </Col>
                   </Row>
 
+                  {hasAddress && (
+                    <Alert variant="light" className="border">
+                      Current address information is ready to save or update.
+                    </Alert>
+                  )}
+
                   <div className="text-end">
                     <Button type="submit" disabled={savingProfile}>
                       {savingProfile ? "Saving..." : "Save Address"}
@@ -507,28 +608,61 @@ const UserDashboardPage = () => {
           {activeSection === "security" && (
             <Card className="border-0 shadow-sm mb-4">
               <Card.Body className="p-4">
-                <h4 className="mb-3">Two-Factor Authentication</h4>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h4 className="mb-0">Two-Factor Authentication</h4>
+                  <Badge bg={profile?.twoFactorEnabled ? "success" : "secondary"}>
+                    {profile?.twoFactorEnabled ? "Enabled" : "Disabled"}
+                  </Badge>
+                </div>
+
                 <p className="text-muted">
                   Enable Microsoft Authenticator so that during login you can choose Authenticator OTP instead of only Email OTP.
                 </p>
 
-                {profile?.TwoFactorEnabled ? (
-                  <Alert variant="success">
-                    Authenticator is already enabled for your account.
-                  </Alert>
+                {profile?.twoFactorEnabled ? (
+                  <>
+                    <Alert variant="success">
+                      Authenticator is enabled for your account.
+                    </Alert>
+
+                    <div className="d-flex gap-2 flex-wrap">
+                      <Button
+                        variant="danger"
+                        onClick={handleDisableAuthenticator}
+                        disabled={disablingAuthenticator}
+                      >
+                        {disablingAuthenticator ? "Disabling..." : "Disable Authenticator"}
+                      </Button>
+                    </div>
+                  </>
                 ) : (
                   <>
                     {!authenticatorSetup && (
-                      <Button onClick={handleLoadAuthenticatorSetup} disabled={loadingAuthenticator}>
+                      <Button
+                        onClick={handleLoadAuthenticatorSetup}
+                        disabled={loadingAuthenticator}
+                      >
                         {loadingAuthenticator ? "Loading..." : "Generate QR Code"}
                       </Button>
                     )}
 
+                    {authenticatorSetup && authenticatorSetup.isAlreadyEnabled && (
+                      <Alert variant="info" className="mt-3">
+                        {authenticatorSetup.message || "Authenticator is already enabled."}
+                      </Alert>
+                    )}
+
                     {authenticatorSetup && !authenticatorSetup.isAlreadyEnabled && (
                       <div className="mt-4">
-                        <p><strong>Step 1:</strong> Open Microsoft Authenticator app.</p>
-                        <p><strong>Step 2:</strong> Scan the QR code below.</p>
-                        <p><strong>Step 3:</strong> Enter the OTP shown in app to enable it.</p>
+                        <p>
+                          <strong>Step 1:</strong> Open Microsoft Authenticator app.
+                        </p>
+                        <p>
+                          <strong>Step 2:</strong> Scan the QR code below.
+                        </p>
+                        <p>
+                          <strong>Step 3:</strong> Enter the OTP shown in app to enable it.
+                        </p>
 
                         <div className="text-center mb-3">
                           <img
@@ -551,9 +685,22 @@ const UserDashboardPage = () => {
                           />
                         </Form.Group>
 
-                        <Button onClick={handleEnableAuthenticator} disabled={enablingAuthenticator}>
-                          {enablingAuthenticator ? "Enabling..." : "Enable Authenticator"}
-                        </Button>
+                        <div className="d-flex gap-2 flex-wrap">
+                          <Button
+                            onClick={handleEnableAuthenticator}
+                            disabled={enablingAuthenticator}
+                          >
+                            {enablingAuthenticator ? "Enabling..." : "Enable Authenticator"}
+                          </Button>
+
+                          <Button
+                            variant="outline-secondary"
+                            onClick={handleGenerateNewQr}
+                            disabled={loadingAuthenticator || enablingAuthenticator}
+                          >
+                            Generate New QR
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </>

@@ -22,25 +22,34 @@ export const loginInitiate = async (email, password) => {
 };
 
 export const sendLoginEmailOtp = async (tempLoginToken) => {
-  const response = await axiosInstance.post("/gateway/auth/login/send-email-otp", {
-    tempLoginToken,
-  });
+  const response = await axiosInstance.post(
+    "/gateway/auth/login/send-email-otp",
+    {
+      tempLoginToken,
+    }
+  );
   return response.data;
 };
 
 export const verifyLoginEmailOtp = async (tempLoginToken, otp) => {
-  const response = await axiosInstance.post("/gateway/auth/login/verify-email-otp", {
-    tempLoginToken,
-    otp,
-  });
+  const response = await axiosInstance.post(
+    "/gateway/auth/login/verify-email-otp",
+    {
+      tempLoginToken,
+      otp,
+    }
+  );
   return response.data;
 };
 
 export const verifyLoginAuthenticator = async (tempLoginToken, otp) => {
-  const response = await axiosInstance.post("/gateway/auth/login/verify-authenticator", {
-    tempLoginToken,
-    otp,
-  });
+  const response = await axiosInstance.post(
+    "/gateway/auth/login/verify-authenticator",
+    {
+      tempLoginToken,
+      otp,
+    }
+  );
   return response.data;
 };
 
@@ -53,24 +62,38 @@ export const requestForgotPassword = async (email, method) => {
 };
 
 export const verifyForgotPasswordEmailOtp = async (email, challengeToken, otp) => {
-  const response = await axiosInstance.post("/gateway/auth/forgot-password/verify-email-otp", {
-    email,
-    challengeToken,
-    otp,
-  });
+  const response = await axiosInstance.post(
+    "/gateway/auth/forgot-password/verify-email-otp",
+    {
+      email,
+      challengeToken,
+      otp,
+    }
+  );
   return response.data;
 };
 
-export const verifyForgotPasswordAuthenticator = async (email, challengeToken, otp) => {
-  const response = await axiosInstance.post("/gateway/auth/forgot-password/verify-authenticator", {
-    email,
-    challengeToken,
-    otp,
-  });
+export const verifyForgotPasswordAuthenticator = async (
+  email,
+  challengeToken,
+  otp
+) => {
+  const response = await axiosInstance.post(
+    "/gateway/auth/forgot-password/verify-authenticator",
+    {
+      email,
+      challengeToken,
+      otp,
+    }
+  );
   return response.data;
 };
 
-export const resetForgotPassword = async (resetToken, newPassword, confirmPassword) => {
+export const resetForgotPassword = async (
+  resetToken,
+  newPassword,
+  confirmPassword
+) => {
   const response = await axiosInstance.post("/gateway/auth/forgot-password/reset", {
     resetToken,
     newPassword,
@@ -90,7 +113,10 @@ export const updateMyProfile = async (profileData) => {
 };
 
 export const changeMyPassword = async (passwordData) => {
-  const response = await axiosInstance.put("/gateway/auth/change-password", passwordData);
+  const response = await axiosInstance.put(
+    "/gateway/auth/change-password",
+    passwordData
+  );
   return response.data;
 };
 
@@ -100,8 +126,16 @@ export const getAuthenticatorSetup = async () => {
 };
 
 export const enableAuthenticator = async (otp) => {
-  const response = await axiosInstance.post("/gateway/auth/authenticator/enable", {
-    otp,
-  });
+  const response = await axiosInstance.post(
+    "/gateway/auth/authenticator/enable",
+    {
+      otp,
+    }
+  );
+  return response.data;
+};
+
+export const disableAuthenticator = async () => {
+  const response = await axiosInstance.post("/gateway/auth/authenticator/disable");
   return response.data;
 };
