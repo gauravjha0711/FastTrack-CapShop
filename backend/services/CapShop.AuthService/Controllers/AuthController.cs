@@ -689,5 +689,28 @@ body {{
 
             return Ok(new { message = "Authenticator enabled successfully." });
         }
+
+        [Authorize]
+        [HttpPost("authenticator/disable")]
+        public async Task<IActionResult> DisableAuthenticator()
+        {
+            var userId = GetCurrentUserId();
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            if (!user.TwoFactorEnabled)
+                return BadRequest(new { message = "Authenticator is already disabled." });
+
+            user.TwoFactorEnabled = false;
+            user.AuthenticatorSecretKey = null;
+            user.PendingAuthenticatorSecret = null;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Authenticator disabled successfully." });
+        }
     }
 }
