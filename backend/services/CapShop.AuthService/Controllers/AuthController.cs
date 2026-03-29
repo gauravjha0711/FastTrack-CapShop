@@ -169,7 +169,10 @@ body {{
                 IsEmailVerified = false,
                 EmailVerificationOtp = otp,
                 EmailVerificationOtpExpiresAt = DateTime.UtcNow.AddMinutes(5),
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                TwoFactorEnabled = false,
+                AuthenticatorSecretKey = null,
+                PendingAuthenticatorSecret = null
             };
 
             _context.Users.Add(user);
@@ -673,10 +676,17 @@ body {{
             if (user == null)
                 return NotFound(new { message = "User not found" });
 
+            if (user.TwoFactorEnabled && !string.IsNullOrWhiteSpace(user.AuthenticatorSecretKey))
+            {
+                return BadRequest(new { message = "Authenticator is already enabled." });
+            }
+
             if (string.IsNullOrWhiteSpace(user.PendingAuthenticatorSecret))
                 return BadRequest(new { message = "Authenticator setup not initiated." });
 
-            var validOtp = _authenticatorService.ValidateOtp(user.PendingAuthenticatorSecret, request.Otp);
+            var cleanedOtp = request.Otp?.Replace(" ", "").Replace("-", "");
+
+            var validOtp = _authenticatorService.ValidateOtp(user.PendingAuthenticatorSecret, cleanedOtp);
 
             if (!validOtp)
                 return BadRequest(new { message = "Invalid authenticator OTP." });
@@ -687,7 +697,11 @@ body {{
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Authenticator enabled successfully." });
+            return Ok(new
+            {
+                message = "Authenticator enabled successfully.",
+                twoFactorEnabled = true
+            });
         }
 
         [Authorize]
@@ -710,7 +724,11 @@ body {{
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Authenticator disabled successfully." });
+            return Ok(new
+            {
+                message = "Authenticator disabled successfully.",
+                twoFactorEnabled = false
+            });
         }
     }
 }
