@@ -15,7 +15,7 @@ namespace CapShop.AuthService.Services
 
             await dbContext.Database.MigrateAsync();
 
-            if (!await dbContext.Users.AnyAsync(u => u.Email == "admin@capshop.com"))
+            if (!await dbContext.Users.AnyAsync(u => u.Email == "capshopadmin@gmail.com"))
             {
                 var adminUser = new User
                 {
