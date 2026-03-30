@@ -11,6 +11,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   loginInitiate,
   sendLoginEmailOtp,
+  sendLoginMobileOtp,
   verifyLoginAuthenticator,
   verifyLoginEmailOtp,
 } from "../../services/authService";
@@ -88,6 +89,21 @@ const LoginPage = () => {
     }
   };
 
+  const handleChooseMobileOtp = async () => {
+    try {
+      setLoading(true);
+      await sendLoginMobileOtp(tempLoginToken);
+      setSelectedMethod("MobileOtp");
+      setStep(3);
+      alert("Login OTP sent to your mobile number.");
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Failed to send mobile OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChooseAuthenticator = () => {
     setSelectedMethod("Authenticator");
     setStep(3);
@@ -101,10 +117,10 @@ const LoginPage = () => {
 
       let response;
 
-      if (selectedMethod === "EmailOtp") {
-        response = await verifyLoginEmailOtp(tempLoginToken, otp);
-      } else {
+      if (selectedMethod === "Authenticator") {
         response = await verifyLoginAuthenticator(tempLoginToken, otp);
+      } else {
+        response = await verifyLoginEmailOtp(tempLoginToken, otp);
       }
 
       login(response);
@@ -374,6 +390,21 @@ const LoginPage = () => {
                     </button>
                   )}
 
+                  {availableMethods.includes("MobileOtp") && (
+                    <button
+                      type="button"
+                      onClick={handleChooseMobileOtp}
+                      disabled={loading}
+                      className="text-start auth-method-btn"
+                      style={methodCardStyle}
+                    >
+                      <div className="fw-bold mb-1">Verify with Mobile OTP</div>
+                      <div className="text-muted small">
+                        Receive a one-time code on your registered mobile number.
+                      </div>
+                    </button>
+                  )}
+
                   {availableMethods.includes("Authenticator") && (
                     <button
                       type="button"
@@ -412,9 +443,11 @@ const LoginPage = () => {
               <Form onSubmit={handleVerifySecondFactor}>
                 <Form.Group className="mb-4">
                   <Form.Label className="fw-semibold">
-                    {selectedMethod === "EmailOtp"
-                      ? "Email OTP"
-                      : "Authenticator Code"}
+                    {selectedMethod === "Authenticator"
+                      ? "Authenticator Code"
+                      : selectedMethod === "MobileOtp"
+                      ? "Mobile OTP"
+                      : "Email OTP"}
                   </Form.Label>
                   <Form.Control
                     value={otp}

@@ -69,3 +69,6 @@ npm-debug.log
 # =========================
 *.tmp
 *.cache
+
+
+backend/services/CapShop.AuthService/appsettings.json

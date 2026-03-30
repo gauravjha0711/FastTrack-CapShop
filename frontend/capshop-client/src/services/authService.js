@@ -42,6 +42,16 @@ export const verifyLoginEmailOtp = async (tempLoginToken, otp) => {
   return response.data;
 };
 
+export const sendLoginMobileOtp = async (tempLoginToken) => {
+  const response = await axiosInstance.post(
+    "/gateway/auth/login/send-mobile-otp",
+    {
+      tempLoginToken,
+    }
+  );
+  return response.data;
+};
+
 export const verifyLoginAuthenticator = async (tempLoginToken, otp) => {
   const response = await axiosInstance.post(
     "/gateway/auth/login/verify-authenticator",

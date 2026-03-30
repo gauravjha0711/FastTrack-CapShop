@@ -22,7 +22,7 @@ namespace CapShop.AuthService.Services
                     Username = "admin",
                     FullName = "System Admin",
                     Email = "capshopadmin@gmail.com",
-                    Phone = "9999999999",
+                    Phone = "+919162691966",
                     PasswordHash = passwordHasher.HashPassword("Admin@123"),
                     RoleName = "Admin",
                     IsActive = true,

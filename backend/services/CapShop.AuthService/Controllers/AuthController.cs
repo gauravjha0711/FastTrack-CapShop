@@ -19,6 +19,7 @@ namespace CapShop.AuthService.Controllers
         private readonly EmailService _emailService;
         private readonly OtpService _otpService;
         private readonly AuthenticatorService _authenticatorService;
+        private readonly SmsService _smsService;
 
         public AuthController(
             AuthDbContext context,
@@ -26,7 +27,8 @@ namespace CapShop.AuthService.Controllers
             IJwtTokenService jwtTokenService,
             EmailService emailService,
             OtpService otpService,
-            AuthenticatorService authenticatorService)
+            AuthenticatorService authenticatorService,
+            SmsService smsService)
         {
             _context = context;
             _passwordHasher = passwordHasher;
@@ -34,6 +36,7 @@ namespace CapShop.AuthService.Controllers
             _emailService = emailService;
             _otpService = otpService;
             _authenticatorService = authenticatorService;
+            _smsService = smsService;
         }
 
         private int GetCurrentUserId()
@@ -249,7 +252,12 @@ body {{
             await _context.SaveChangesAsync();
 
             var methods = new List<string> { "EmailOtp" };
-            if (user.TwoFactorEnabled && !string.IsNullOrWhiteSpace(user.AuthenticatorSecretKey))
+
+            if (user.RoleName.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                methods.Add("MobileOtp");
+            }
+            else if (user.TwoFactorEnabled && !string.IsNullOrWhiteSpace(user.AuthenticatorSecretKey))
             {
                 methods.Add("Authenticator");
             }
@@ -290,6 +298,38 @@ body {{
                 BuildOtpEmailHtml("CapShop Login Verification", otp));
 
             return Ok(new { message = "Login OTP sent to your email." });
+        }
+
+        [HttpPost("login/send-mobile-otp")]
+        public async Task<IActionResult> SendLoginMobileOtp(SendLoginEmailOtpDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.PendingLoginToken == request.TempLoginToken &&
+                u.PendingLoginTokenExpiresAt != null &&
+                u.PendingLoginTokenExpiresAt > DateTime.UtcNow);
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid or expired login session." });
+
+            if (!user.RoleName.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "Mobile OTP is allowed only for admin login." });
+
+            if (string.IsNullOrWhiteSpace(user.Phone))
+                return BadRequest(new { message = "Mobile number is not available for this account." });
+
+            var otp = _otpService.GenerateOtp();
+
+            user.LoginOtp = otp;
+            user.LoginOtpExpiresAt = DateTime.UtcNow.AddMinutes(5);
+
+            await _context.SaveChangesAsync();
+
+            _smsService.SendOtp(user.Phone, otp);
+
+            return Ok(new { message = "Login OTP sent to your mobile number." });
         }
 
         [HttpPost("login/verify-email-otp")]
