@@ -21,7 +21,7 @@ const Footer = () => {
       style={{
         background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)",
         color: "#f9fafb",
-        marginTop: "60px",
+        marginTop: "0px",
         borderTop: "1px solid rgba(255,255,255,0.08)",
       }}
     >
