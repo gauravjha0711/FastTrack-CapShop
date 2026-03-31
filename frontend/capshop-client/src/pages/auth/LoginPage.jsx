@@ -12,8 +12,10 @@ import {
   loginInitiate,
   sendLoginEmailOtp,
   sendLoginMobileOtp,
+  sendLoginWhatsappOtp,
   verifyLoginAuthenticator,
   verifyLoginEmailOtp,
+  verifyLoginWhatsappOtp,
 } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 
@@ -104,6 +106,21 @@ const LoginPage = () => {
     }
   };
 
+  const handleChooseWhatsappOtp = async () => {
+    try {
+      setLoading(true);
+      await sendLoginWhatsappOtp(tempLoginToken);
+      setSelectedMethod("WhatsappOtp");
+      setStep(3);
+      alert("Login OTP sent to your WhatsApp number.");
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Failed to send WhatsApp OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChooseAuthenticator = () => {
     setSelectedMethod("Authenticator");
     setStep(3);
@@ -119,6 +136,8 @@ const LoginPage = () => {
 
       if (selectedMethod === "Authenticator") {
         response = await verifyLoginAuthenticator(tempLoginToken, otp);
+      } else if (selectedMethod === "WhatsappOtp") {
+        response = await verifyLoginWhatsappOtp(tempLoginToken, otp);
       } else {
         response = await verifyLoginEmailOtp(tempLoginToken, otp);
       }
@@ -405,6 +424,21 @@ const LoginPage = () => {
                     </button>
                   )}
 
+                  {availableMethods.includes("WhatsappOtp") && (
+                    <button
+                      type="button"
+                      onClick={handleChooseWhatsappOtp}
+                      disabled={loading}
+                      className="text-start auth-method-btn"
+                      style={methodCardStyle}
+                    >
+                      <div className="fw-bold mb-1">Verify with WhatsApp OTP</div>
+                      <div className="text-muted small">
+                        Receive a one-time code on your registered WhatsApp number.
+                      </div>
+                    </button>
+                  )}
+
                   {availableMethods.includes("Authenticator") && (
                     <button
                       type="button"
@@ -447,6 +481,8 @@ const LoginPage = () => {
                       ? "Authenticator Code"
                       : selectedMethod === "MobileOtp"
                       ? "Mobile OTP"
+                      : selectedMethod === "WhatsappOtp"
+                      ? "WhatsApp OTP"
                       : "Email OTP"}
                   </Form.Label>
                   <Form.Control

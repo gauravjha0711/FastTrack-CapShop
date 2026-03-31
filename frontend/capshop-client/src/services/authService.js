@@ -52,6 +52,27 @@ export const sendLoginMobileOtp = async (tempLoginToken) => {
   return response.data;
 };
 
+export const sendLoginWhatsappOtp = async (tempLoginToken) => {
+  const response = await axiosInstance.post(
+    "/gateway/auth/login/send-whatsapp-otp",
+    {
+      tempLoginToken,
+    }
+  );
+  return response.data;
+};
+
+export const verifyLoginWhatsappOtp = async (tempLoginToken, otp) => {
+  const response = await axiosInstance.post(
+    "/gateway/auth/login/verify-whatsapp-otp",
+    {
+      tempLoginToken,
+      otp,
+    }
+  );
+  return response.data;
+};
+
 export const verifyLoginAuthenticator = async (tempLoginToken, otp) => {
   const response = await axiosInstance.post(
     "/gateway/auth/login/verify-authenticator",
@@ -64,14 +85,21 @@ export const verifyLoginAuthenticator = async (tempLoginToken, otp) => {
 };
 
 export const requestForgotPassword = async (email, method) => {
-  const response = await axiosInstance.post("/gateway/auth/forgot-password/request", {
-    email,
-    method,
-  });
+  const response = await axiosInstance.post(
+    "/gateway/auth/forgot-password/request",
+    {
+      email,
+      method,
+    }
+  );
   return response.data;
 };
 
-export const verifyForgotPasswordEmailOtp = async (email, challengeToken, otp) => {
+export const verifyForgotPasswordEmailOtp = async (
+  email,
+  challengeToken,
+  otp
+) => {
   const response = await axiosInstance.post(
     "/gateway/auth/forgot-password/verify-email-otp",
     {
