@@ -12,6 +12,7 @@ namespace CapShop.AuthService.Services
             _configuration = configuration;
         }
 
+
         public async Task SendEmailAsync(string email, string subject, string htmlBody)
         {
             var smtpServer = _configuration["EmailSettings:SmtpServer"];
