@@ -1,7 +1,27 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Col, Form, Row, Spinner } from "react-bootstrap";
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Form,
+  Row,
+  Spinner,
+} from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import { getCart, placeOrder, simulatePayment, startCheckout } from "../../services/cartService";
+import {
+  FaCheckCircle,
+  FaCreditCard,
+  FaMapMarkerAlt,
+  FaMoneyCheckAlt,
+  FaShippingFast,
+} from "react-icons/fa";
+import {
+  getCart,
+  placeOrder,
+  simulatePayment,
+  startCheckout,
+} from "../../services/cartService";
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -10,7 +30,7 @@ const CheckoutPage = () => {
     cartId: 0,
     userId: 0,
     items: [],
-    totalAmount: 0
+    totalAmount: 0,
   });
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -20,7 +40,7 @@ const CheckoutPage = () => {
     addressLine: "",
     city: "",
     state: "",
-    pincode: ""
+    pincode: "",
   });
   const [deliveryOption, setDeliveryOption] = useState("Standard");
   const [paymentMethod, setPaymentMethod] = useState("UPI");
@@ -37,6 +57,7 @@ const CheckoutPage = () => {
   const fetchCart = async () => {
     try {
       setLoading(true);
+      setError("");
       const data = await getCart();
       setCart(data);
 
@@ -45,7 +66,7 @@ const CheckoutPage = () => {
       }
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Checkout load nahi ho paaya.");
+      setError(err.response?.data?.message || "Unable to load checkout page.");
     } finally {
       setLoading(false);
     }
@@ -58,7 +79,7 @@ const CheckoutPage = () => {
   const handleAddressChange = (e) => {
     setAddressData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     }));
   };
 
@@ -130,292 +151,712 @@ const CheckoutPage = () => {
     }
   };
 
+  const stepConfig = [
+    { id: 1, title: "Address", icon: <FaMapMarkerAlt /> },
+    { id: 2, title: "Delivery", icon: <FaShippingFast /> },
+    { id: 3, title: "Payment", icon: <FaCreditCard /> },
+    { id: 4, title: "Review", icon: <FaCheckCircle /> },
+  ];
+
   if (loading) {
     return (
-      <div className="text-center py-5">
-        <Spinner animation="border" />
-      </div>
+      <>
+        <style>
+          {`
+            .capshop-checkout-loading {
+              min-height: 60vh;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+            }
+          `}
+        </style>
+        <div className="capshop-checkout-loading">
+          <Spinner animation="border" />
+          <p className="text-muted mt-3 mb-0">Preparing checkout...</p>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="mt-4">
-      <h2 className="mb-4">Checkout</h2>
+    <>
+      <style>
+        {`
+          .capshop-checkout-page {
+            padding-top: 24px;
+            padding-bottom: 32px;
+          }
 
-      {error && <Alert variant="danger">{error}</Alert>}
+          .capshop-page-title {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 6px;
+          }
 
-      <Row className="mb-4">
-        <Col md={3}>
-          <Card className={`p-3 text-center ${currentStep === 1 ? "border-primary" : ""}`}>
-            <strong>1. Address</strong>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className={`p-3 text-center ${currentStep === 2 ? "border-primary" : ""}`}>
-            <strong>2. Delivery</strong>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className={`p-3 text-center ${currentStep === 3 ? "border-primary" : ""}`}>
-            <strong>3. Payment</strong>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className={`p-3 text-center ${currentStep === 4 ? "border-primary" : ""}`}>
-            <strong>4. Review</strong>
-          </Card>
-        </Col>
-      </Row>
+          .capshop-page-subtitle {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 24px;
+          }
 
-      <Row>
-        <Col md={8}>
-          {currentStep === 1 && (
-            <Card className="p-4 card-shadow">
-              <h4 className="mb-3">Shipping Address</h4>
+          .capshop-stepper {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+          }
 
-              <Form onSubmit={handleAddressSubmit}>
-                <Row>
+          .capshop-step-card {
+            border: none;
+            border-radius: 18px;
+            padding: 16px 14px;
+            text-align: center;
+            background: #ffffff;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            transition: all 0.25s ease;
+          }
+
+          .capshop-step-card.active {
+            background: linear-gradient(135deg, #eff6ff, #ffffff);
+            border: 1px solid #bfdbfe;
+            box-shadow: 0 12px 26px rgba(37, 99, 235, 0.1);
+          }
+
+          .capshop-step-card.completed {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+          }
+
+          .capshop-step-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            color: #2563eb;
+            font-size: 16px;
+          }
+
+          .capshop-step-card.completed .capshop-step-icon {
+            background: #dcfce7;
+            color: #16a34a;
+          }
+
+          .capshop-step-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 2px;
+          }
+
+          .capshop-step-number {
+            font-size: 12px;
+            color: #64748b;
+          }
+
+          .capshop-main-card,
+          .capshop-summary-card {
+            border: none !important;
+            border-radius: 24px !important;
+            background: #ffffff;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+          }
+
+          .capshop-main-card {
+            padding: 26px;
+          }
+
+          .capshop-summary-card {
+            padding: 24px;
+            position: sticky;
+            top: 90px;
+          }
+
+          .capshop-card-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 20px;
+          }
+
+          .capshop-label {
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+          }
+
+          .capshop-input,
+          .capshop-select {
+            border-radius: 12px !important;
+            padding: 11px 14px !important;
+            border: 1px solid #dbe2ea !important;
+            box-shadow: none !important;
+          }
+
+          .capshop-input:focus,
+          .capshop-select:focus {
+            border-color: #93c5fd !important;
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.08) !important;
+          }
+
+          .capshop-option-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 16px;
+            transition: all 0.25s ease;
+            cursor: pointer;
+            background: #ffffff;
+          }
+
+          .capshop-option-card.active {
+            border-color: #93c5fd;
+            background: #eff6ff;
+            box-shadow: 0 8px 18px rgba(37, 99, 235, 0.08);
+          }
+
+          .capshop-option-title {
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+          }
+
+          .capshop-option-text {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 0;
+          }
+
+          .capshop-action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 24px;
+          }
+
+          .capshop-btn {
+            border-radius: 14px !important;
+            padding: 11px 18px !important;
+            font-weight: 700 !important;
+          }
+
+          .capshop-primary-btn {
+            background: linear-gradient(90deg, #2563eb, #3b82f6) !important;
+            border: none !important;
+            box-shadow: 0 10px 22px rgba(37, 99, 235, 0.16);
+          }
+
+          .capshop-outline-btn {
+            border: 1px solid #dbeafe !important;
+            background: #ffffff !important;
+            color: #2563eb !important;
+          }
+
+          .capshop-outline-btn:hover {
+            background: #eff6ff !important;
+          }
+
+          .capshop-danger-btn {
+            border: none !important;
+            background: linear-gradient(90deg, #ef4444, #dc2626) !important;
+          }
+
+          .capshop-success-btn {
+            border: none !important;
+            background: linear-gradient(90deg, #16a34a, #22c55e) !important;
+          }
+
+          .capshop-payment-status {
+            margin-top: 18px;
+            border-radius: 14px !important;
+          }
+
+          .capshop-review-block {
+            padding: 16px 0;
+            border-bottom: 1px solid #edf2f7;
+          }
+
+          .capshop-review-block:last-child {
+            border-bottom: none;
+          }
+
+          .capshop-review-heading {
+            font-size: 15px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 10px;
+          }
+
+          .capshop-review-text {
+            color: #475569;
+            margin-bottom: 4px;
+            font-size: 14px;
+          }
+
+          .capshop-item-row,
+          .capshop-summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+          }
+
+          .capshop-item-row {
+            margin-bottom: 12px;
+          }
+
+          .capshop-item-name {
+            font-size: 14px;
+            color: #334155;
+            margin-bottom: 0;
+          }
+
+          .capshop-item-price {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+          }
+
+          .capshop-summary-title {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 18px;
+          }
+
+          .capshop-summary-row {
+            margin-bottom: 12px;
+            color: #475569;
+            font-size: 15px;
+          }
+
+          .capshop-summary-total {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+
+          .capshop-summary-total span {
+            font-weight: 700;
+            color: #0f172a;
+          }
+
+          .capshop-summary-total strong {
+            font-size: 1.35rem;
+            color: #111827;
+          }
+
+          .capshop-summary-note {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #64748b;
+          }
+
+          @media (max-width: 991px) {
+            .capshop-summary-card {
+              position: static;
+              margin-top: 18px;
+            }
+          }
+
+          @media (max-width: 767px) {
+            .capshop-stepper {
+              grid-template-columns: repeat(2, 1fr);
+            }
+
+            .capshop-main-card,
+            .capshop-summary-card {
+              padding: 20px;
+            }
+
+            .capshop-page-title {
+              font-size: 1.65rem;
+            }
+          }
+
+          @media (max-width: 576px) {
+            .capshop-stepper {
+              grid-template-columns: 1fr;
+            }
+
+            .capshop-action-row {
+              flex-direction: column;
+            }
+
+            .capshop-btn {
+              width: 100%;
+            }
+          }
+        `}
+      </style>
+
+      <div className="capshop-checkout-page">
+        <h2 className="capshop-page-title">Checkout</h2>
+        <p className="capshop-page-subtitle">
+          Complete your order in a few simple steps
+        </p>
+
+        {error && (
+          <Alert variant="danger" className="rounded-4 border-0 shadow-sm">
+            {error}
+          </Alert>
+        )}
+
+        <div className="capshop-stepper">
+          {stepConfig.map((step) => {
+            const isActive = currentStep === step.id;
+            const isCompleted = currentStep > step.id;
+
+            return (
+              <div
+                key={step.id}
+                className={`capshop-step-card ${isActive ? "active" : ""} ${
+                  isCompleted ? "completed" : ""
+                }`}
+              >
+                <div className="capshop-step-icon">{step.icon}</div>
+                <div className="capshop-step-title">{step.title}</div>
+                <div className="capshop-step-number">Step {step.id}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        <Row className="g-4">
+          <Col lg={8}>
+            {currentStep === 1 && (
+              <Card className="capshop-main-card">
+                <h4 className="capshop-card-title">Shipping Address</h4>
+
+                <Form onSubmit={handleAddressSubmit}>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="capshop-label">Full Name</Form.Label>
+                        <Form.Control
+                          name="fullName"
+                          value={addressData.fullName}
+                          onChange={handleAddressChange}
+                          placeholder="Enter full name"
+                          className="capshop-input"
+                        />
+                      </Form.Group>
+                    </Col>
+
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="capshop-label">Phone</Form.Label>
+                        <Form.Control
+                          name="phone"
+                          value={addressData.phone}
+                          onChange={handleAddressChange}
+                          placeholder="Enter phone number"
+                          className="capshop-input"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label className="capshop-label">Address Line</Form.Label>
+                    <Form.Control
+                      name="addressLine"
+                      value={addressData.addressLine}
+                      onChange={handleAddressChange}
+                      placeholder="Enter full address"
+                      className="capshop-input"
+                    />
+                  </Form.Group>
+
+                  <Row>
+                    <Col md={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="capshop-label">City</Form.Label>
+                        <Form.Control
+                          name="city"
+                          value={addressData.city}
+                          onChange={handleAddressChange}
+                          placeholder="Enter city"
+                          className="capshop-input"
+                        />
+                      </Form.Group>
+                    </Col>
+
+                    <Col md={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="capshop-label">State</Form.Label>
+                        <Form.Control
+                          name="state"
+                          value={addressData.state}
+                          onChange={handleAddressChange}
+                          placeholder="Enter state"
+                          className="capshop-input"
+                        />
+                      </Form.Group>
+                    </Col>
+
+                    <Col md={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="capshop-label">Pincode</Form.Label>
+                        <Form.Control
+                          name="pincode"
+                          value={addressData.pincode}
+                          onChange={handleAddressChange}
+                          placeholder="Enter pincode"
+                          className="capshop-input"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+
+                  <div className="capshop-action-row">
+                    <Button type="submit" disabled={submitting} className="capshop-btn capshop-primary-btn">
+                      {submitting ? "Saving..." : "Save Address & Continue"}
+                    </Button>
+                  </div>
+                </Form>
+              </Card>
+            )}
+
+            {currentStep === 2 && (
+              <Card className="capshop-main-card">
+                <h4 className="capshop-card-title">Choose Delivery Option</h4>
+
+                <Row className="g-3">
                   <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Full Name</Form.Label>
-                      <Form.Control
-                        name="fullName"
-                        value={addressData.fullName}
-                        onChange={handleAddressChange}
-                        placeholder="Enter full name"
+                    <div
+                      className={`capshop-option-card ${
+                        deliveryOption === "Standard" ? "active" : ""
+                      }`}
+                      onClick={() => setDeliveryOption("Standard")}
+                    >
+                      <div className="capshop-option-title">
+                        Standard Delivery
+                      </div>
+                      <p className="capshop-option-text">
+                        Delivery in 2-4 business days
+                      </p>
+                      <Form.Check
+                        type="radio"
+                        checked={deliveryOption === "Standard"}
+                        onChange={() => setDeliveryOption("Standard")}
+                        label="Recommended for regular orders"
+                        className="mt-3"
                       />
-                    </Form.Group>
+                    </div>
                   </Col>
 
                   <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Phone</Form.Label>
-                      <Form.Control
-                        name="phone"
-                        value={addressData.phone}
-                        onChange={handleAddressChange}
-                        placeholder="Enter phone number"
+                    <div
+                      className={`capshop-option-card ${
+                        deliveryOption === "Express" ? "active" : ""
+                      }`}
+                      onClick={() => setDeliveryOption("Express")}
+                    >
+                      <div className="capshop-option-title">
+                        Express Delivery
+                      </div>
+                      <p className="capshop-option-text">
+                        Delivery in 1-2 business days
+                      </p>
+                      <Form.Check
+                        type="radio"
+                        checked={deliveryOption === "Express"}
+                        onChange={() => setDeliveryOption("Express")}
+                        label="Faster delivery for urgent orders"
+                        className="mt-3"
                       />
-                    </Form.Group>
+                    </div>
                   </Col>
                 </Row>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Address Line</Form.Label>
-                  <Form.Control
-                    name="addressLine"
-                    value={addressData.addressLine}
-                    onChange={handleAddressChange}
-                    placeholder="Enter address"
-                  />
-                </Form.Group>
-
-                <Row>
-                  <Col md={4}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>City</Form.Label>
-                      <Form.Control
-                        name="city"
-                        value={addressData.city}
-                        onChange={handleAddressChange}
-                        placeholder="Enter city"
-                      />
-                    </Form.Group>
-                  </Col>
-
-                  <Col md={4}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>State</Form.Label>
-                      <Form.Control
-                        name="state"
-                        value={addressData.state}
-                        onChange={handleAddressChange}
-                        placeholder="Enter state"
-                      />
-                    </Form.Group>
-                  </Col>
-
-                  <Col md={4}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Pincode</Form.Label>
-                      <Form.Control
-                        name="pincode"
-                        value={addressData.pincode}
-                        onChange={handleAddressChange}
-                        placeholder="Enter pincode"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? "Saving..." : "Save Address & Continue"}
-                </Button>
-              </Form>
-            </Card>
-          )}
-
-          {currentStep === 2 && (
-            <Card className="p-4 card-shadow">
-              <h4 className="mb-3">Delivery Option</h4>
-
-              <Form>
-                <Form.Check
-                  type="radio"
-                  label="Standard Delivery (2-4 days)"
-                  name="deliveryOption"
-                  value="Standard"
-                  checked={deliveryOption === "Standard"}
-                  onChange={(e) => setDeliveryOption(e.target.value)}
-                  className="mb-3"
-                />
-                <Form.Check
-                  type="radio"
-                  label="Express Delivery (1-2 days)"
-                  name="deliveryOption"
-                  value="Express"
-                  checked={deliveryOption === "Express"}
-                  onChange={(e) => setDeliveryOption(e.target.value)}
-                  className="mb-3"
-                />
-
-                <div className="d-flex gap-2">
-                  <Button variant="outline-secondary" onClick={() => setCurrentStep(1)}>
+                <div className="capshop-action-row">
+                  <Button
+                    variant="light"
+                    className="capshop-btn capshop-outline-btn"
+                    onClick={() => setCurrentStep(1)}
+                  >
                     Back
                   </Button>
-                  <Button onClick={handleDeliveryNext}>
+                  <Button
+                    className="capshop-btn capshop-primary-btn"
+                    onClick={handleDeliveryNext}
+                  >
                     Continue to Payment
                   </Button>
                 </div>
-              </Form>
-            </Card>
-          )}
+              </Card>
+            )}
 
-          {currentStep === 3 && (
-            <Card className="p-4 card-shadow">
-              <h4 className="mb-3">Payment Simulation</h4>
+            {currentStep === 3 && (
+              <Card className="capshop-main-card">
+                <h4 className="capshop-card-title">Payment</h4>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Select Payment Method</Form.Label>
-                <Form.Select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                >
-                  <option value="UPI">UPI</option>
-                  <option value="Card">Card</option>
-                  <option value="COD">COD</option>
-                </Form.Select>
-              </Form.Group>
+                <Form.Group className="mb-4">
+                  <Form.Label className="capshop-label">
+                    Select Payment Method
+                  </Form.Label>
+                  <Form.Select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="capshop-select"
+                  >
+                    <option value="UPI">UPI</option>
+                    <option value="Card">Card</option>
+                    <option value="COD">Cash on Delivery</option>
+                  </Form.Select>
+                </Form.Group>
 
-              <div className="d-flex gap-2">
-                <Button
-                  variant="success"
-                  onClick={() => handleSimulatePayment(true)}
-                  disabled={submitting}
-                >
-                  Simulate Payment Success
-                </Button>
+                <div className="capshop-action-row">
+                  <Button
+                    variant="light"
+                    className="capshop-btn capshop-outline-btn"
+                    onClick={() => setCurrentStep(2)}
+                  >
+                    Back
+                  </Button>
 
-                <Button
-                  variant="danger"
-                  onClick={() => handleSimulatePayment(false)}
-                  disabled={submitting}
-                >
-                  Simulate Payment Failure
-                </Button>
-              </div>
+                  <Button
+                    className="capshop-btn capshop-success-btn"
+                    onClick={() => handleSimulatePayment(true)}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Processing..." : "Simulate Payment Success"}
+                  </Button>
 
-              {paymentStatus && (
-                <Alert
-                  variant={paymentStatus === "Success" ? "success" : "danger"}
-                  className="mt-3"
-                >
-                  Payment Status: {paymentStatus}
-                  {paymentReference ? ` | Ref: ${paymentReference}` : ""}
-                </Alert>
-              )}
-            </Card>
-          )}
+                  <Button
+                    className="capshop-btn capshop-danger-btn"
+                    onClick={() => handleSimulatePayment(false)}
+                    disabled={submitting}
+                  >
+                    Simulate Payment Failure
+                  </Button>
+                </div>
 
-          {currentStep === 4 && (
-            <Card className="p-4 card-shadow">
-              <h4 className="mb-3">Review Order</h4>
+                {paymentStatus && (
+                  <Alert
+                    variant={paymentStatus === "Success" ? "success" : "danger"}
+                    className="capshop-payment-status"
+                  >
+                    <strong>Payment Status:</strong> {paymentStatus}
+                    {paymentReference ? ` | Ref: ${paymentReference}` : ""}
+                  </Alert>
+                )}
+              </Card>
+            )}
 
-              <h5>Shipping Address</h5>
-              <p className="mb-1">{addressData.fullName}</p>
-              <p className="mb-1">{addressData.phone}</p>
-              <p className="mb-1">{addressData.addressLine}</p>
-              <p className="mb-1">
-                {addressData.city}, {addressData.state} - {addressData.pincode}
-              </p>
+            {currentStep === 4 && (
+              <Card className="capshop-main-card">
+                <h4 className="capshop-card-title">Review Your Order</h4>
 
-              <hr />
+                <div className="capshop-review-block">
+                  <div className="capshop-review-heading">Shipping Address</div>
+                  <p className="capshop-review-text">{addressData.fullName}</p>
+                  <p className="capshop-review-text">{addressData.phone}</p>
+                  <p className="capshop-review-text">{addressData.addressLine}</p>
+                  <p className="capshop-review-text">
+                    {addressData.city}, {addressData.state} - {addressData.pincode}
+                  </p>
+                </div>
 
-              <h5>Delivery</h5>
-              <p>{deliveryOption}</p>
+                <div className="capshop-review-block">
+                  <div className="capshop-review-heading">Delivery</div>
+                  <p className="capshop-review-text">{deliveryOption}</p>
+                </div>
 
-              <h5>Payment</h5>
-              <p>
-                {paymentMethod} | {paymentStatus}
-                {paymentReference ? ` | Ref: ${paymentReference}` : ""}
-              </p>
+                <div className="capshop-review-block">
+                  <div className="capshop-review-heading">Payment</div>
+                  <p className="capshop-review-text">
+                    {paymentMethod} | {paymentStatus}
+                    {paymentReference ? ` | Ref: ${paymentReference}` : ""}
+                  </p>
+                </div>
 
-              <h5>Items</h5>
+                <div className="capshop-review-block">
+                  <div className="capshop-review-heading">Items</div>
+                  {cart.items.map((item) => (
+                    <div key={item.id} className="capshop-item-row">
+                      <p className="capshop-item-name">
+                        {item.productName} × {item.quantity}
+                      </p>
+                      <span className="capshop-item-price">₹{item.lineTotal}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="capshop-action-row">
+                  <Button
+                    variant="light"
+                    className="capshop-btn capshop-outline-btn"
+                    onClick={() => setCurrentStep(3)}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    className="capshop-btn capshop-primary-btn"
+                    onClick={handlePlaceOrder}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Placing Order..." : "Place Order"}
+                  </Button>
+                </div>
+              </Card>
+            )}
+          </Col>
+
+          <Col lg={4}>
+            <Card className="capshop-summary-card">
+              <div className="capshop-summary-title">Order Summary</div>
+
               {cart.items.map((item) => (
-                <div key={item.id} className="d-flex justify-content-between mb-2">
-                  <span>
-                    {item.productName} x {item.quantity}
-                  </span>
-                  <span>₹{item.lineTotal}</span>
+                <div key={item.id} className="capshop-item-row">
+                  <p className="capshop-item-name">
+                    {item.productName} × {item.quantity}
+                  </p>
+                  <span className="capshop-item-price">₹{item.lineTotal}</span>
                 </div>
               ))}
 
-              <hr />
+              <div className="capshop-summary-total">
+                <span>Total Items</span>
+                <strong>{totalItems}</strong>
+              </div>
 
-              <div className="d-flex justify-content-between">
-                <strong>Total</strong>
+              <div className="capshop-summary-row mt-3">
+                <span>Delivery</span>
+                <span>{deliveryOption}</span>
+              </div>
+
+              <div className="capshop-summary-total">
+                <span>Total Amount</span>
                 <strong>₹{cart.totalAmount}</strong>
               </div>
 
-              <div className="d-flex gap-2 mt-4">
-                <Button variant="outline-secondary" onClick={() => setCurrentStep(3)}>
-                  Back
-                </Button>
-                <Button onClick={handlePlaceOrder} disabled={submitting}>
-                  {submitting ? "Placing Order..." : "Place Order"}
-                </Button>
-              </div>
+              <p className="capshop-summary-note">
+                Final payable amount including selected delivery option.
+              </p>
+
+              <Button
+                variant="light"
+                className="capshop-btn capshop-outline-btn w-100 mt-3"
+                onClick={() => navigate("/cart")}
+              >
+                Back to Cart
+              </Button>
             </Card>
-          )}
-        </Col>
-
-        <Col md={4}>
-          <Card className="p-4 card-shadow">
-            <h4>Order Summary</h4>
-            <hr />
-
-            {cart.items.map((item) => (
-              <div key={item.id} className="mb-2">
-                <div className="d-flex justify-content-between">
-                  <span>{item.productName} x {item.quantity}</span>
-                  <span>₹{item.lineTotal}</span>
-                </div>
-              </div>
-            ))}
-
-            <hr />
-            <div className="d-flex justify-content-between">
-              <span>Total Items</span>
-              <span>{totalItems}</span>
-            </div>
-            <div className="d-flex justify-content-between mt-2">
-              <strong>Total Amount</strong>
-              <strong>₹{cart.totalAmount}</strong>
-            </div>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+          </Col>
+        </Row>
+      </div>
+    </>
   );
 };
 
