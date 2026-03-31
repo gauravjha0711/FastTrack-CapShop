@@ -256,6 +256,7 @@ body {{
             if (user.RoleName.Equals("Admin", StringComparison.OrdinalIgnoreCase))
             {
                 methods.Add("MobileOtp");
+                methods.Add("WhatsappOtp");
             }
             else if (user.TwoFactorEnabled && !string.IsNullOrWhiteSpace(user.AuthenticatorSecretKey))
             {
@@ -332,8 +333,71 @@ body {{
             return Ok(new { message = "Login OTP sent to your mobile number." });
         }
 
+        [HttpPost("login/send-whatsapp-otp")]
+        public async Task<IActionResult> SendLoginWhatsappOtp(SendLoginWhatsappOtpDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.PendingLoginToken == request.TempLoginToken &&
+                u.PendingLoginTokenExpiresAt != null &&
+                u.PendingLoginTokenExpiresAt > DateTime.UtcNow);
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid or expired login session." });
+
+            if (!user.RoleName.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "WhatsApp OTP is allowed only for admin login." });
+
+            if (string.IsNullOrWhiteSpace(user.Phone))
+                return BadRequest(new { message = "Mobile number is not available for this account." });
+
+            var otp = _otpService.GenerateOtp();
+
+            user.LoginOtp = otp;
+            user.LoginOtpExpiresAt = DateTime.UtcNow.AddMinutes(5);
+
+            await _context.SaveChangesAsync();
+
+            _smsService.SendWhatsAppOtp(user.Phone, otp);
+
+            return Ok(new { message = "Login OTP sent to your WhatsApp number." });
+        }
+
         [HttpPost("login/verify-email-otp")]
         public async Task<IActionResult> VerifyLoginEmailOtp(VerifyLoginEmailOtpDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.PendingLoginToken == request.TempLoginToken &&
+                u.PendingLoginTokenExpiresAt != null &&
+                u.PendingLoginTokenExpiresAt > DateTime.UtcNow);
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid or expired login session." });
+
+            if (user.LoginOtp != request.Otp ||
+                user.LoginOtpExpiresAt == null ||
+                user.LoginOtpExpiresAt < DateTime.UtcNow)
+            {
+                return BadRequest(new { message = "Invalid or expired OTP." });
+            }
+
+            user.LoginOtp = null;
+            user.LoginOtpExpiresAt = null;
+            user.PendingLoginToken = null;
+            user.PendingLoginTokenExpiresAt = null;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(BuildAuthResponse(user));
+        }
+
+        [HttpPost("login/verify-whatsapp-otp")]
+        public async Task<IActionResult> VerifyLoginWhatsappOtp(VerifyLoginWhatsappOtpDto request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);

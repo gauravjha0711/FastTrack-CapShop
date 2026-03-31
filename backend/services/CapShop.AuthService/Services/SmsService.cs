@@ -31,10 +31,7 @@ namespace CapShop.AuthService.Services
                 throw new ArgumentException("Phone number is required.");
             }
 
-            if (!phone.StartsWith("+"))
-            {
-                phone = "+91" + phone.Trim();
-            }
+            phone = NormalizePhone(phone);
 
             TwilioClient.Init(accountSid, authToken);
 
@@ -43,6 +40,47 @@ namespace CapShop.AuthService.Services
                 from: new PhoneNumber(fromNumber),
                 to: new PhoneNumber(phone)
             );
+        }
+
+        public void SendWhatsAppOtp(string phone, string otp)
+        {
+            var accountSid = _configuration["SmsSettings:AccountSid"];
+            var authToken = _configuration["SmsSettings:AuthToken"];
+            var fromWhatsappNumber = _configuration["SmsSettings:FromWhatsappNumber"];
+
+            if (string.IsNullOrWhiteSpace(accountSid) ||
+                string.IsNullOrWhiteSpace(authToken) ||
+                string.IsNullOrWhiteSpace(fromWhatsappNumber))
+            {
+                throw new InvalidOperationException("SmsSettings WhatsApp configuration is missing.");
+            }
+
+            if (string.IsNullOrWhiteSpace(phone))
+            {
+                throw new ArgumentException("Phone number is required.");
+            }
+
+            var normalizedPhone = NormalizePhone(phone);
+
+            TwilioClient.Init(accountSid, authToken);
+
+            MessageResource.Create(
+                body: $"CapShop OTP: {otp}. Valid for 5 minutes. Do not share this code.",
+                from: new PhoneNumber(fromWhatsappNumber),
+                to: new PhoneNumber($"whatsapp:{normalizedPhone}")
+            );
+        }
+
+        private static string NormalizePhone(string phone)
+        {
+            var normalizedPhone = phone.Trim();
+
+            if (!normalizedPhone.StartsWith("+"))
+            {
+                normalizedPhone = "+91" + normalizedPhone;
+            }
+
+            return normalizedPhone;
         }
     }
 }
