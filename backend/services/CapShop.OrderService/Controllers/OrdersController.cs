@@ -391,41 +391,11 @@ namespace CapShop.OrderService.Controllers
                 return BadRequest(new { message = "Payment is not successful. Cannot place order." });
             }
 
-            foreach (var item in cart.Items)
-            {
-                var latestProduct = await _catalogClientService.GetProductByIdAsync(item.ProductId);
-
-                if (latestProduct == null)
-                {
-                    return BadRequest(new { message = $"Product not found for product id {item.ProductId}." });
-                }
-
-                if (!latestProduct.IsActive)
-                {
-                    return BadRequest(new { message = $"Product {item.ProductName} is inactive." });
-                }
-
-                if (latestProduct.Stock < item.Quantity)
-                {
-                    return BadRequest(new { message = $"Insufficient stock for product {item.ProductName}." });
-                }
-            }
-
-            foreach (var item in cart.Items)
-            {
-                var reduced = await _catalogClientService.ReduceStockAsync(item.ProductId, item.Quantity);
-
-                if (!reduced)
-                {
-                    return BadRequest(new { message = $"Failed to reduce stock for product {item.ProductName}." });
-                }
-            }
-
             var order = new Order
             {
                 UserId = userId,
                 TotalAmount = cart.Items.Sum(i => i.UnitPrice * i.Quantity),
-                Status = "Paid",
+                Status = "Pending",
                 PaymentMethod = session.PaymentMethod,
                 PaymentStatus = session.PaymentStatus,
                 DeliveryOption = request.DeliveryOption,
@@ -455,37 +425,32 @@ namespace CapShop.OrderService.Controllers
 
             await _context.SaveChangesAsync();
 
-            var orderPlacedEvent = new OrderPlacedIntegrationEvent(
+            var correlationId = Guid.NewGuid();
+            var reserveEvent = new InventoryReservationRequestedIntegrationEvent(
                 EventId: Guid.NewGuid(),
                 OccurredUtc: DateTime.UtcNow,
+                CorrelationId: correlationId,
                 OrderId: order.Id,
                 UserId: order.UserId,
-                TotalAmount: order.TotalAmount,
-                Status: order.Status,
-                FullName: order.FullName,
-                DeliveryOption: order.DeliveryOption,
-                Items: order.OrderItems.Select(i => new OrderItemSnapshot(
-                    ProductId: i.ProductId,
-                    ProductName: i.ProductName,
-                    UnitPrice: i.UnitPrice,
-                    Quantity: i.Quantity,
-                    LineTotal: i.LineTotal
-                )).ToList()
+                Items: order.OrderItems
+                    .Select(i => new InventoryReservationItem(i.ProductId, i.Quantity))
+                    .ToList()
             );
 
             try
             {
-                await _publisher.PublishAsync(orderPlacedEvent, RabbitMqRoutingKeys.OrderPlaced, HttpContext.RequestAborted);
+                await _publisher.PublishAsync(reserveEvent, RabbitMqRoutingKeys.InventoryReserveRequested, HttpContext.RequestAborted);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to publish OrderPlaced event for orderId={OrderId}", order.Id);
+                _logger.LogError(ex, "Failed to publish InventoryReservationRequested event for orderId={OrderId}. Order will remain Pending.", order.Id);
             }
 
             return Ok(new
             {
-                message = "Order placed successfully.",
-                orderId = order.Id
+                message = "Order received. Processing inventory reservation.",
+                orderId = order.Id,
+                status = order.Status
             });
         }
 
@@ -639,7 +604,7 @@ namespace CapShop.OrderService.Controllers
                 return BadRequest(ModelState);
             }
 
-            var validStatuses = new[] { "Paid", "Packed", "Shipped", "Delivered", "Cancelled" };
+            var validStatuses = new[] { "Pending", "Paid", "Packed", "Shipped", "Delivered", "Cancelled" };
 
             if (!validStatuses.Contains(request.Status, StringComparer.OrdinalIgnoreCase))
             {
@@ -682,7 +647,7 @@ namespace CapShop.OrderService.Controllers
         {
             var totalOrders = await _context.Orders.CountAsync();
             var pendingOrders = await _context.Orders.CountAsync(o =>
-                o.Status == "Paid" || o.Status == "Packed");
+                o.Status == "Pending" || o.Status == "Paid" || o.Status == "Packed");
             var totalSales = await _context.Orders
                 .Where(o => o.Status != "Cancelled")
                 .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;

@@ -1,5 +1,7 @@
 using CapShop.OrderService.Data;
+using CapShop.OrderService.IntegrationEvents;
 using CapShop.OrderService.Services;
+using CapShop.Messaging.Contracts;
 using CapShop.Messaging.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +24,10 @@ builder.Services.AddHttpClient<ICatalogClientService, CatalogClientService>(clie
 });
 
 builder.Services.AddCapShopRabbitMq(builder.Configuration);
+builder.Services.AddRabbitMqConsumer<InventoryReservedIntegrationEvent, InventoryReservedHandler>(
+    builder.Configuration.GetSection("RabbitMq:Consumers:InventoryReserved"));
+builder.Services.AddRabbitMqConsumer<InventoryReservationFailedIntegrationEvent, InventoryReservationFailedHandler>(
+    builder.Configuration.GetSection("RabbitMq:Consumers:InventoryReservationFailed"));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

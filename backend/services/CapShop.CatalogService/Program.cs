@@ -1,5 +1,8 @@
 using CapShop.CatalogService.Data;
+using CapShop.CatalogService.IntegrationEvents;
 using CapShop.CatalogService.Services;
+using CapShop.Messaging.Contracts;
+using CapShop.Messaging.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +13,10 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<CatalogDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddCapShopRabbitMq(builder.Configuration);
+builder.Services.AddRabbitMqConsumer<InventoryReservationRequestedIntegrationEvent, InventoryReservationRequestedHandler>(
+    builder.Configuration.GetSection("RabbitMq:Consumers:InventoryReservation"));
 
 builder.Services.AddCors(options =>
 {

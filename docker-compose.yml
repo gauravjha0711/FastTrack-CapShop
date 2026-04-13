@@ -60,6 +60,14 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Database=CapShopCatalogDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: capshop
+      RabbitMq__Password: capshop123!
+      RabbitMq__VirtualHost: /
+      RabbitMq__ExchangeName: capshop.events
+    depends_on:
+      - rabbitmq
     networks:
       - capshop-network
 
