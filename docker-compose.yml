@@ -1,4 +1,34 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: capshop-rabbitmq
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: capshop
+      RABBITMQ_DEFAULT_PASS: capshop123!
+    volumes:
+      - capshop-rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - capshop-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: capshop-redis
+    ports:
+      - "6380:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - capshop-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - capshop-network
+
   authservice:
     build:
       context: .
@@ -9,6 +39,14 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Database=CapShopAuthDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: capshop
+      RabbitMq__Password: capshop123!
+      RabbitMq__VirtualHost: /
+      RabbitMq__ExchangeName: capshop.events
+    depends_on:
+      - rabbitmq
     networks:
       - capshop-network
 
@@ -35,6 +73,14 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Database=CapShopOrderDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: capshop
+      RabbitMq__Password: capshop123!
+      RabbitMq__VirtualHost: /
+      RabbitMq__ExchangeName: capshop.events
+    depends_on:
+      - rabbitmq
     networks:
       - capshop-network
 
@@ -60,11 +106,13 @@ services:
       - "5000:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      GatewayRedisCache__ConnectionString: redis:6379
     depends_on:
       - authservice
       - catalogservice
       - orderservice
       - adminservice
+      - redis
     networks:
       - capshop-network
 
@@ -83,3 +131,7 @@ services:
 networks:
   capshop-network:
     driver: bridge
+
+volumes:
+  capshop-rabbitmq-data:
+  capshop-redis-data:
