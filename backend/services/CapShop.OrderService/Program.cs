@@ -1,5 +1,6 @@
 using CapShop.OrderService.Data;
 using CapShop.OrderService.Services;
+using CapShop.Messaging.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -19,6 +20,8 @@ builder.Services.AddHttpClient<ICatalogClientService, CatalogClientService>(clie
 {
     client.BaseAddress = new Uri(builder.Configuration["CatalogService:BaseUrl"]!);
 });
+
+builder.Services.AddCapShopRabbitMq(builder.Configuration);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

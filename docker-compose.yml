@@ -1,0 +1,85 @@
+services:
+  authservice:
+    build:
+      context: .
+      dockerfile: backend/services/CapShop.AuthService/Dockerfile
+    container_name: capshop-authservice
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Database=CapShopAuthDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+    networks:
+      - capshop-network
+
+  catalogservice:
+    build:
+      context: .
+      dockerfile: backend/services/CapShop.CatalogService/Dockerfile
+    container_name: capshop-catalogservice
+    ports:
+      - "5002:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Database=CapShopCatalogDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+    networks:
+      - capshop-network
+
+  orderservice:
+    build:
+      context: .
+      dockerfile: backend/services/CapShop.OrderService/Dockerfile
+    container_name: capshop-orderservice
+    ports:
+      - "5003:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Database=CapShopOrderDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+    networks:
+      - capshop-network
+
+  adminservice:
+    build:
+      context: .
+      dockerfile: backend/services/CapShop.AdminService/Dockerfile
+    container_name: capshop-adminservice
+    ports:
+      - "5004:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Database=CapShopAdminDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+    networks:
+      - capshop-network
+
+  gateway:
+    build:
+      context: .
+      dockerfile: backend/gateways/CapShop.Gateway/Dockerfile
+    container_name: capshop-gateway
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    depends_on:
+      - authservice
+      - catalogservice
+      - orderservice
+      - adminservice
+    networks:
+      - capshop-network
+
+  frontend:
+    build:
+      context: ./frontend/capshop-client
+      dockerfile: Dockerfile
+    container_name: capshop-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+    networks:
+      - capshop-network
+
+networks:
+  capshop-network:
+    driver: bridge

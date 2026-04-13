@@ -1,5 +1,8 @@
 using CapShop.AuthService.Data;
+using CapShop.AuthService.IntegrationEvents;
 using CapShop.AuthService.Services;
+using CapShop.Messaging.Contracts;
+using CapShop.Messaging.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -20,6 +23,12 @@ builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<OtpService>();
 builder.Services.AddScoped<AuthenticatorService>();
 builder.Services.AddScoped<SmsService>();
+
+builder.Services.AddCapShopRabbitMq(builder.Configuration);
+builder.Services.AddRabbitMqConsumer<OrderPlacedIntegrationEvent, OrderPlacedEmailHandler>(
+    builder.Configuration.GetSection("RabbitMq:Consumers:OrderPlacedEmail"));
+builder.Services.AddRabbitMqConsumer<OrderStatusChangedIntegrationEvent, OrderStatusChangedEmailHandler>(
+    builder.Configuration.GetSection("RabbitMq:Consumers:OrderStatusChangedEmail"));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

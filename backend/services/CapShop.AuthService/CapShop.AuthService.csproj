@@ -28,4 +28,8 @@
     <PackageReference Include="Twilio" Version="7.14.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\buildingBlocks\CapShop.Messaging\CapShop.Messaging.csproj" />
+  </ItemGroup>
+
 </Project>

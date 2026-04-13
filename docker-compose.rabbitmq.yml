@@ -1,0 +1,15 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: capshop-rabbitmq
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: capshop
+      RABBITMQ_DEFAULT_PASS: capshop123!
+    volumes:
+      - capshop-rabbitmq-data:/var/lib/rabbitmq
+
+volumes:
+  capshop-rabbitmq-data:

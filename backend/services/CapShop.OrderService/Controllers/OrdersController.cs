@@ -2,6 +2,8 @@
 using CapShop.OrderService.DTOs;
 using CapShop.OrderService.Models;
 using CapShop.OrderService.Services;
+using CapShop.Messaging.Abstractions;
+using CapShop.Messaging.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,11 +17,19 @@ namespace CapShop.OrderService.Controllers
     {
         private readonly OrderDbContext _context;
         private readonly ICatalogClientService _catalogClientService;
+        private readonly IRabbitMqPublisher _publisher;
+        private readonly ILogger<OrdersController> _logger;
 
-        public OrdersController(OrderDbContext context, ICatalogClientService catalogClientService)
+        public OrdersController(
+            OrderDbContext context,
+            ICatalogClientService catalogClientService,
+            IRabbitMqPublisher publisher,
+            ILogger<OrdersController> logger)
         {
             _context = context;
             _catalogClientService = catalogClientService;
+            _publisher = publisher;
+            _logger = logger;
         }
 
         private int GetCurrentUserId()
@@ -445,6 +455,33 @@ namespace CapShop.OrderService.Controllers
 
             await _context.SaveChangesAsync();
 
+            var orderPlacedEvent = new OrderPlacedIntegrationEvent(
+                EventId: Guid.NewGuid(),
+                OccurredUtc: DateTime.UtcNow,
+                OrderId: order.Id,
+                UserId: order.UserId,
+                TotalAmount: order.TotalAmount,
+                Status: order.Status,
+                FullName: order.FullName,
+                DeliveryOption: order.DeliveryOption,
+                Items: order.OrderItems.Select(i => new OrderItemSnapshot(
+                    ProductId: i.ProductId,
+                    ProductName: i.ProductName,
+                    UnitPrice: i.UnitPrice,
+                    Quantity: i.Quantity,
+                    LineTotal: i.LineTotal
+                )).ToList()
+            );
+
+            try
+            {
+                await _publisher.PublishAsync(orderPlacedEvent, RabbitMqRoutingKeys.OrderPlaced, HttpContext.RequestAborted);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to publish OrderPlaced event for orderId={OrderId}", order.Id);
+            }
+
             return Ok(new
             {
                 message = "Order placed successfully.",
@@ -543,8 +580,26 @@ namespace CapShop.OrderService.Controllers
                 return BadRequest(new { message = "Order cannot be cancelled after packed stage." });
             }
 
+            var oldStatus = order.Status;
             order.Status = "Cancelled";
             await _context.SaveChangesAsync();
+
+            var statusChangedEvent = new OrderStatusChangedIntegrationEvent(
+                EventId: Guid.NewGuid(),
+                OccurredUtc: DateTime.UtcNow,
+                OrderId: order.Id,
+                UserId: order.UserId,
+                OldStatus: oldStatus,
+                NewStatus: order.Status);
+
+            try
+            {
+                await _publisher.PublishAsync(statusChangedEvent, RabbitMqRoutingKeys.OrderStatusChanged, HttpContext.RequestAborted);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to publish OrderStatusChanged event for orderId={OrderId}", order.Id);
+            }
 
             return Ok(new { message = "Order cancelled successfully." });
         }
@@ -598,8 +653,26 @@ namespace CapShop.OrderService.Controllers
                 return NotFound(new { message = "Order not found." });
             }
 
+            var oldStatus = order.Status;
             order.Status = request.Status;
             await _context.SaveChangesAsync();
+
+            var statusChangedEvent = new OrderStatusChangedIntegrationEvent(
+                EventId: Guid.NewGuid(),
+                OccurredUtc: DateTime.UtcNow,
+                OrderId: order.Id,
+                UserId: order.UserId,
+                OldStatus: oldStatus,
+                NewStatus: order.Status);
+
+            try
+            {
+                await _publisher.PublishAsync(statusChangedEvent, RabbitMqRoutingKeys.OrderStatusChanged, HttpContext.RequestAborted);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to publish OrderStatusChanged event for orderId={OrderId}", order.Id);
+            }
 
             return Ok(new { message = "Order status updated successfully." });
         }
