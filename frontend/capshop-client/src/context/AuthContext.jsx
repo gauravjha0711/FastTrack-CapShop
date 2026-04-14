@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import {
   clearAuthData,
   getToken,
@@ -36,12 +37,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    const hadSession = !!token;
     clearAuthData();
     setToken(null);
     setRole(null);
     setUserId(null);
     setName(null);
     setIsAuthenticated(false);
+
+    if (hadSession) {
+      toast.success("Logged out successfully.");
+    }
   };
 
   const updateName = (newName) => {

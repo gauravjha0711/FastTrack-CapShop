@@ -144,6 +144,7 @@ const LoginPage = () => {
       }
 
       login(response);
+      toast.success("Login successful.");
       redirectUser(response.role);
     } catch (error) {
       console.error(error);
