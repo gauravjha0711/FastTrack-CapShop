@@ -43,6 +43,15 @@ public sealed class RabbitMqConsumerHostedService<TMessage, THandler> : Backgrou
     {
         _stoppingToken = stoppingToken;
 
+        if (!_busOptions.Enabled)
+        {
+            _logger.LogInformation(
+                "RabbitMQ is disabled (RabbitMq:Enabled=false). Skipping consumer startup for queue={Queue} routingKey={RoutingKey}.",
+                _consumerOptions.QueueName,
+                _consumerOptions.RoutingKey);
+            return Task.CompletedTask;
+        }
+
         if (string.IsNullOrWhiteSpace(_consumerOptions.QueueName))
         {
             throw new InvalidOperationException($"RabbitMq consumer queue name is missing for {typeof(TMessage).Name}.");

@@ -1,0 +1,23 @@
+IF DB_ID(N'CapShopAuthDb') IS NULL
+BEGIN
+  CREATE DATABASE [CapShopAuthDb];
+END
+GO
+
+IF DB_ID(N'CapShopCatalogDb') IS NULL
+BEGIN
+  CREATE DATABASE [CapShopCatalogDb];
+END
+GO
+
+IF DB_ID(N'CapShopOrderDb') IS NULL
+BEGIN
+  CREATE DATABASE [CapShopOrderDb];
+END
+GO
+
+IF DB_ID(N'CapShopAdminDb') IS NULL
+BEGIN
+  CREATE DATABASE [CapShopAdminDb];
+END
+GO

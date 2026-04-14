@@ -1,6 +1,7 @@
 using CapShop.CatalogService.Data;
 using CapShop.CatalogService.IntegrationEvents;
 using CapShop.CatalogService.Services;
+using CapShop.CatalogService.Services.Chatbot;
 using CapShop.Messaging.Contracts;
 using CapShop.Messaging.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<CatalogDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddSingleton<IChatbotService, MockChatbotService>();
 
 builder.Services.AddCapShopRabbitMq(builder.Configuration);
 builder.Services.AddRabbitMqConsumer<InventoryReservationRequestedIntegrationEvent, InventoryReservationRequestedHandler>(

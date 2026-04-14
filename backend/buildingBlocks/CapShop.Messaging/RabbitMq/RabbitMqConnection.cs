@@ -41,6 +41,11 @@ public sealed class RabbitMqConnection : IDisposable
 
     private IConnection CreateConnection()
     {
+        if (!_options.Enabled)
+        {
+            throw new InvalidOperationException("RabbitMQ is disabled (RabbitMq:Enabled=false).");
+        }
+
         var factory = new ConnectionFactory
         {
             HostName = _options.HostName,

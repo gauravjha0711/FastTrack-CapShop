@@ -12,8 +12,8 @@ public static class ServiceCollectionExtensions
     {
         services.AddOptions<RabbitMqOptions>()
             .Bind(configuration.GetSection("RabbitMq"))
-            .Validate(o => !string.IsNullOrWhiteSpace(o.HostName), "RabbitMq:HostName is required")
-            .Validate(o => !string.IsNullOrWhiteSpace(o.ExchangeName), "RabbitMq:ExchangeName is required")
+            .Validate(o => !o.Enabled || !string.IsNullOrWhiteSpace(o.HostName), "RabbitMq:HostName is required")
+            .Validate(o => !o.Enabled || !string.IsNullOrWhiteSpace(o.ExchangeName), "RabbitMq:ExchangeName is required")
             .ValidateOnStart();
 
         services.AddSingleton<RabbitMqConnection>();

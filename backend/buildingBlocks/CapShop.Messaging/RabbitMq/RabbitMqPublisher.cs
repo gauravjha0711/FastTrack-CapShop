@@ -29,6 +29,15 @@ public sealed class RabbitMqPublisher : IRabbitMqPublisher
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (!_options.Enabled)
+        {
+            _logger.LogDebug(
+                "RabbitMQ is disabled (RabbitMq:Enabled=false). Skipping publish of {MessageType} routingKey={RoutingKey}.",
+                typeof(TMessage).Name,
+                routingKey);
+            return Task.CompletedTask;
+        }
+
         var connection = _connection.GetOrCreateConnection();
         using var channel = connection.CreateModel();
 

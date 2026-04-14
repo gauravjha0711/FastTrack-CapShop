@@ -1,27 +1,12 @@
 {
   "Routes": [
     {
-      "UpstreamPathTemplate": "/gateway/chatbot/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST" ],
-      "DownstreamPathTemplate": "/api/Chatbot/{everything}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5002
-        }
-      ]
-    },
-    {
       "UpstreamPathTemplate": "/gateway/auth/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
       "DownstreamPathTemplate": "/api/Auth/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5001
-        }
+        { "Host": "authservice", "Port": 8080 }
       ]
     },
     {
@@ -30,10 +15,7 @@
       "DownstreamPathTemplate": "/api/Health",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5001
-        }
+        { "Host": "authservice", "Port": 8080 }
       ]
     },
     {
@@ -42,10 +24,7 @@
       "DownstreamPathTemplate": "/api/Catalog/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5002
-        }
+        { "Host": "catalogservice", "Port": 8080 }
       ]
     },
     {
@@ -54,10 +33,7 @@
       "DownstreamPathTemplate": "/api/Health",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5002
-        }
+        { "Host": "catalogservice", "Port": 8080 }
       ]
     },
     {
@@ -66,10 +42,7 @@
       "DownstreamPathTemplate": "/api/Orders/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5003
-        }
+        { "Host": "orderservice", "Port": 8080 }
       ]
     },
     {
@@ -78,10 +51,7 @@
       "DownstreamPathTemplate": "/api/Health",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5003
-        }
+        { "Host": "orderservice", "Port": 8080 }
       ]
     },
     {
@@ -90,10 +60,7 @@
       "DownstreamPathTemplate": "/api/Admin/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5004
-        }
+        { "Host": "adminservice", "Port": 8080 }
       ]
     },
     {
@@ -102,10 +69,7 @@
       "DownstreamPathTemplate": "/api/Health",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5004
-        }
+        { "Host": "adminservice", "Port": 8080 }
       ]
     }
   ],
