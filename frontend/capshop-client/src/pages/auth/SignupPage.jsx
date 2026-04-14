@@ -10,6 +10,7 @@ import {
   Col,
 } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { signupUser, verifySignupOtp } from "../../services/authService";
 
 const SignupPage = () => {
@@ -44,11 +45,11 @@ const SignupPage = () => {
       setLoading(true);
       const response = await signupUser(signupForm);
       setEmailForOtp(response.email || signupForm.email);
-      alert(response.message || "OTP sent to your email.");
+      toast.success(response.message || "OTP sent to your email.");
       setStep(2);
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Signup failed.");
+      toast.error(error.response?.data?.message || "Signup failed.");
     } finally {
       setLoading(false);
     }
@@ -60,11 +61,11 @@ const SignupPage = () => {
     try {
       setLoading(true);
       const response = await verifySignupOtp(emailForOtp, otp);
-      alert(response.message || "Email verified successfully.");
+      toast.success(response.message || "Email verified successfully.");
       navigate("/login");
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "OTP verification failed.");
+      toast.error(error.response?.data?.message || "OTP verification failed.");
     } finally {
       setLoading(false);
     }

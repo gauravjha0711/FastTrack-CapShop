@@ -9,6 +9,7 @@ import {
   Spinner,
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   FaCheckCircle,
   FaCreditCard,
@@ -98,7 +99,7 @@ const CheckoutPage = () => {
 
     const validationMessage = validateAddress();
     if (validationMessage) {
-      alert(validationMessage);
+      toast.error(validationMessage);
       return;
     }
 
@@ -108,7 +109,7 @@ const CheckoutPage = () => {
       setCurrentStep(2);
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Address step failed.");
+      toast.error(err.response?.data?.message || "Address step failed.");
     } finally {
       setSubmitting(false);
     }
@@ -128,11 +129,11 @@ const CheckoutPage = () => {
       if (response.paymentStatus === "Success") {
         setCurrentStep(4);
       } else {
-        alert("Payment failed. Please simulate success to continue.");
+        toast.error("Payment failed. Please simulate success to continue.");
       }
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Payment simulation failed.");
+      toast.error(err.response?.data?.message || "Payment simulation failed.");
     } finally {
       setSubmitting(false);
     }
@@ -145,7 +146,7 @@ const CheckoutPage = () => {
       navigate(`/orders/confirmation/${response.orderId}`);
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Place order failed.");
+      toast.error(err.response?.data?.message || "Place order failed.");
     } finally {
       setSubmitting(false);
     }

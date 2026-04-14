@@ -28,6 +28,7 @@ import {
   disableAuthenticator,
 } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
+import { toast } from "react-toastify";
 
 const UserDashboardPage = () => {
   const { updateName } = useAuth();
@@ -133,17 +134,17 @@ const UserDashboardPage = () => {
 
   const validateProfileForm = () => {
     if (!profileForm.username.trim()) {
-      alert("Username required hai.");
+      toast.error("Username required hai.");
       return false;
     }
 
     if (!profileForm.fullName.trim()) {
-      alert("Full name required hai.");
+      toast.error("Full name required hai.");
       return false;
     }
 
     if (!profileForm.phone.trim()) {
-      alert("Phone required hai.");
+      toast.error("Phone required hai.");
       return false;
     }
 
@@ -189,22 +190,22 @@ const UserDashboardPage = () => {
     e.preventDefault();
 
     if (!passwordForm.oldPassword.trim()) {
-      alert("Old password required hai.");
+      toast.error("Old password required hai.");
       return;
     }
 
     if (!passwordForm.newPassword.trim()) {
-      alert("New password required hai.");
+      toast.error("New password required hai.");
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
-      alert("New password must be at least 6 characters long.");
+      toast.error("New password must be at least 6 characters long.");
       return;
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert("New password and confirm password do not match.");
+      toast.error("New password and confirm password do not match.");
       return;
     }
 
@@ -252,7 +253,7 @@ const UserDashboardPage = () => {
 
   const handleEnableAuthenticator = async () => {
     if (!authenticatorOtp.trim()) {
-      alert("Please enter authenticator OTP.");
+      toast.error("Please enter authenticator OTP.");
       return;
     }
 

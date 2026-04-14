@@ -21,6 +21,7 @@ import {
 import axiosInstance from "../../services/axiosInstance";
 import { useAuth } from "../../context/AuthContext";
 import { addToCart } from "../../services/cartService";
+  import { toast } from "react-toastify";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -87,24 +88,24 @@ const ProductDetailPage = () => {
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
-      alert("Please login as customer first.");
+        toast.error("Please login as customer first.");
       navigate("/login");
       return;
     }
 
     if (role !== "Customer") {
-      alert("Only customers can add items to cart.");
+        toast.error("Only customers can add items to cart.");
       return;
     }
 
     try {
       setAdding(true);
       await addToCart(product.id, Number(quantity));
-      alert("Item added to cart successfully.");
+        toast.success("Item added to cart successfully.");
       navigate("/cart");
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Add to cart failed.");
+        toast.error(err.response?.data?.message || "Add to cart failed.");
     } finally {
       setAdding(false);
     }

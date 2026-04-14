@@ -14,6 +14,7 @@ import {
   verifyForgotPasswordAuthenticator,
   verifyForgotPasswordEmailOtp,
 } from "../../services/authService";
+import { toast } from "react-toastify";
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
@@ -45,11 +46,11 @@ const ForgotPasswordPage = () => {
       setLoading(true);
       const response = await requestForgotPassword(email, method);
       setChallengeToken(response.challengeToken);
-      alert(response.message || "Verification started.");
+      toast.success(response.message || "Verification started.");
       setStep(2);
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Request failed.");
+      toast.error(error.response?.data?.message || "Request failed.");
     } finally {
       setLoading(false);
     }
@@ -69,11 +70,11 @@ const ForgotPasswordPage = () => {
       }
 
       setResetToken(response.resetToken);
-      alert(response.message || "Verification successful.");
+      toast.success(response.message || "Verification successful.");
       setStep(3);
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Verification failed.");
+      toast.error(error.response?.data?.message || "Verification failed.");
     } finally {
       setLoading(false);
     }
@@ -89,11 +90,11 @@ const ForgotPasswordPage = () => {
         passwordForm.newPassword,
         passwordForm.confirmPassword
       );
-      alert(response.message || "Password reset successful.");
+      toast.success(response.message || "Password reset successful.");
       navigate("/login");
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Password reset failed.");
+      toast.error(error.response?.data?.message || "Password reset failed.");
     } finally {
       setLoading(false);
     }

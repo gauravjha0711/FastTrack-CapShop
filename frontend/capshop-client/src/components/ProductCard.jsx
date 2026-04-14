@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { addToCart } from "../services/cartService";
 import { FaShoppingCart, FaEye, FaStar } from "react-icons/fa";
+import { toast } from "react-toastify";
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
@@ -15,23 +16,23 @@ const ProductCard = ({ product }) => {
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
-      alert("Please login as customer first.");
+      toast.error("Please login as customer first.");
       navigate("/login");
       return;
     }
 
     if (role !== "Customer") {
-      alert("Only customers can add items to cart.");
+      toast.error("Only customers can add items to cart.");
       return;
     }
 
     try {
       setAdding(true);
       await addToCart(product.id, 1);
-      alert("Item added to cart successfully.");
+      toast.success("Item added to cart successfully.");
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Add to cart failed.");
+      toast.error(error.response?.data?.message || "Add to cart failed.");
     } finally {
       setAdding(false);
     }

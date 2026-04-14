@@ -9,6 +9,7 @@ import {
   Spinner,
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   FaArrowLeft,
   FaMinus,
@@ -61,7 +62,7 @@ const CartPage = () => {
       await fetchCart();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Quantity update failed.");
+      toast.error(err.response?.data?.message || "Quantity update failed.");
     } finally {
       setUpdatingItemId(null);
     }
@@ -76,7 +77,7 @@ const CartPage = () => {
       await fetchCart();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Quantity update failed.");
+      toast.error(err.response?.data?.message || "Quantity update failed.");
     } finally {
       setUpdatingItemId(null);
     }
@@ -89,7 +90,7 @@ const CartPage = () => {
       await fetchCart();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Remove failed.");
+      toast.error(err.response?.data?.message || "Remove failed.");
     } finally {
       setUpdatingItemId(null);
     }

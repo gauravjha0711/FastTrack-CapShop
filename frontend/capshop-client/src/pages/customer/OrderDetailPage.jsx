@@ -20,6 +20,7 @@ import {
   FaTruck,
 } from "react-icons/fa";
 import { cancelOrder, getOrderById } from "../../services/cartService";
+import { toast } from "react-toastify";
 
 const OrderDetailPage = () => {
   const { id } = useParams();
@@ -52,11 +53,11 @@ const OrderDetailPage = () => {
     try {
       setCancelling(true);
       await cancelOrder(id);
-      alert("Order cancelled successfully.");
+      toast.success("Order cancelled successfully.");
       await fetchOrder();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Cancel failed.");
+      toast.error(err.response?.data?.message || "Cancel failed.");
     } finally {
       setCancelling(false);
     }

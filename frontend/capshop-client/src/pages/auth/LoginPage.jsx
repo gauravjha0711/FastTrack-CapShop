@@ -8,6 +8,7 @@ import {
   ProgressBar,
 } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   loginInitiate,
   sendLoginEmailOtp,
@@ -70,7 +71,7 @@ const LoginPage = () => {
       setStep(2);
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Login failed.");
+      toast.error(error.response?.data?.message || "Login failed.");
     } finally {
       setLoading(false);
     }
@@ -82,10 +83,10 @@ const LoginPage = () => {
       await sendLoginEmailOtp(tempLoginToken);
       setSelectedMethod("EmailOtp");
       setStep(3);
-      alert("Login OTP sent to your email.");
+      toast.success("Login OTP sent to your email.");
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Failed to send email OTP.");
+      toast.error(error.response?.data?.message || "Failed to send email OTP.");
     } finally {
       setLoading(false);
     }
@@ -97,10 +98,10 @@ const LoginPage = () => {
       await sendLoginMobileOtp(tempLoginToken);
       setSelectedMethod("MobileOtp");
       setStep(3);
-      alert("Login OTP sent to your mobile number.");
+      toast.success("Login OTP sent to your mobile number.");
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Failed to send mobile OTP.");
+      toast.error(error.response?.data?.message || "Failed to send mobile OTP.");
     } finally {
       setLoading(false);
     }
@@ -112,10 +113,10 @@ const LoginPage = () => {
       await sendLoginWhatsappOtp(tempLoginToken);
       setSelectedMethod("WhatsappOtp");
       setStep(3);
-      alert("Login OTP sent to your WhatsApp number.");
+      toast.success("Login OTP sent to your WhatsApp number.");
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Failed to send WhatsApp OTP.");
+      toast.error(error.response?.data?.message || "Failed to send WhatsApp OTP.");
     } finally {
       setLoading(false);
     }
@@ -146,7 +147,7 @@ const LoginPage = () => {
       redirectUser(response.role);
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Verification failed.");
+      toast.error(error.response?.data?.message || "Verification failed.");
     } finally {
       setLoading(false);
     }
