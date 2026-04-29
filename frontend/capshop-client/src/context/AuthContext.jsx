@@ -3,10 +3,12 @@ import { toast } from "react-toastify";
 import {
   clearAuthData,
   getToken,
+  getUserAvatarUrl,
   getUserId,
   getUserName,
   getUserRole,
   saveAuthData,
+  updateStoredAvatarUrl,
   updateStoredName,
 } from "../utils/tokenHelper";
 
@@ -17,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState(getUserRole());
   const [userId, setUserId] = useState(getUserId());
   const [name, setName] = useState(getUserName());
+  const [avatarUrl, setAvatarUrl] = useState(getUserAvatarUrl());
   const [isAuthenticated, setIsAuthenticated] = useState(!!getToken());
 
   useEffect(() => {
@@ -24,6 +27,7 @@ export const AuthProvider = ({ children }) => {
     setRole(getUserRole());
     setUserId(getUserId());
     setName(getUserName());
+    setAvatarUrl(getUserAvatarUrl());
     setIsAuthenticated(!!getToken());
   }, []);
 
@@ -33,6 +37,7 @@ export const AuthProvider = ({ children }) => {
     setRole(authResponse.role);
     setUserId(authResponse.userId);
     setName(authResponse.name);
+    setAvatarUrl(authResponse.avatarUrl || getUserAvatarUrl());
     setIsAuthenticated(true);
   };
 
@@ -43,6 +48,7 @@ export const AuthProvider = ({ children }) => {
     setRole(null);
     setUserId(null);
     setName(null);
+    setAvatarUrl(null);
     setIsAuthenticated(false);
 
     if (hadSession) {
@@ -55,6 +61,11 @@ export const AuthProvider = ({ children }) => {
     setName(newName);
   };
 
+  const updateAvatarUrl = (newAvatarUrl) => {
+    updateStoredAvatarUrl(newAvatarUrl);
+    setAvatarUrl(newAvatarUrl);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -62,10 +73,12 @@ export const AuthProvider = ({ children }) => {
         role,
         userId,
         name,
+        avatarUrl,
         isAuthenticated,
         login,
         logout,
         updateName,
+        updateAvatarUrl,
       }}
     >
       {children}

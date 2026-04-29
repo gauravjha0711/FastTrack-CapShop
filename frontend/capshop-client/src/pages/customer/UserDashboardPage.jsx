@@ -31,7 +31,7 @@ import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
 
 const UserDashboardPage = () => {
-  const { updateName } = useAuth();
+  const { updateName, updateAvatarUrl } = useAuth();
 
   const [profile, setProfile] = useState(null);
   const [activeSection, setActiveSection] = useState("profile");
@@ -97,6 +97,9 @@ const UserDashboardPage = () => {
       const normalizedData = normalizeProfileData(data);
 
       setProfile(normalizedData);
+
+      updateName(normalizedData.fullName);
+      updateAvatarUrl(normalizedData.avatarUrl);
 
       setProfileForm({
         username: normalizedData.username,
@@ -177,6 +180,7 @@ const UserDashboardPage = () => {
       });
 
       updateName(normalizedUpdatedProfile.fullName);
+      updateAvatarUrl(normalizedUpdatedProfile.avatarUrl);
       setSuccessMessage("Profile successfully updated.");
     } catch (err) {
       console.error(err);

@@ -1,13 +1,14 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Container, Nav, Navbar as BsNavbar, Button } from "react-bootstrap";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaUserCircle } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 
 const Navbar = () => {
-  const { isAuthenticated, role, name, logout } = useAuth();
+  const { isAuthenticated, role, name, avatarUrl, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -19,6 +20,24 @@ const Navbar = () => {
     location.pathname === "/login" || location.pathname === "/forgot-password";
   const isSignupActive = location.pathname === "/signup";
   const isAdminActive = location.pathname.startsWith("/admin");
+
+  const profilePath = useMemo(() => {
+    if (role === "Customer") return "/account";
+    if (role === "Admin") return "/admin/dashboard";
+    return "/";
+  }, [role]);
+
+  const isProfileActive = useMemo(() => {
+    if (role === "Customer") return isActive("/account");
+    if (role === "Admin") return isAdminActive;
+    return false;
+  }, [role, isAdminActive, location.pathname]);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatarUrl]);
+
+  const showAvatarImage = !!avatarUrl?.trim() && !avatarFailed;
 
   return (
     <>
@@ -251,6 +270,37 @@ const Navbar = () => {
             font-weight: 600;
           }
 
+          .capshop-profile-chip {
+            text-decoration: none;
+            transition: none;
+          }
+
+          .capshop-profile-chip:hover {
+            color: #ffffff;
+            background: rgba(96, 165, 250, 0.10);
+            border-color: rgba(125, 211, 252, 0.14);
+          }
+
+          .capshop-profile-chip:focus-visible {
+            outline: 2px solid rgba(125, 211, 252, 0.30);
+            outline-offset: 2px;
+          }
+
+          .capshop-profile-chip.active-profile {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.24) 0%, rgba(99, 102, 241, 0.20) 100%);
+            border-color: rgba(125, 211, 252, 0.18);
+          }
+
+          .capshop-avatar-img {
+            width: 26px;
+            height: 26px;
+            border-radius: 999px;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.20);
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
+          }
+
+
           .capshop-logout-btn {
             border-radius: 12px;
             padding: 9px 16px;
@@ -391,14 +441,6 @@ const Navbar = () => {
                       >
                         My Orders
                       </Nav.Link>
-
-                      <Nav.Link
-                        as={Link}
-                        to="/account"
-                        className={`capshop-nav-link ${isActive("/account") ? "active-link" : ""}`}
-                      >
-                        My Account
-                      </Nav.Link>
                     </>
                   )}
 
@@ -435,10 +477,24 @@ const Navbar = () => {
 
                 {isAuthenticated && (
                   <div className="capshop-user-actions">
-                    <div className="capshop-user-chip">
-                      <FaUserCircle size={16} />
-                      <span>Hi, {name}</span>
-                    </div>
+                    <Link
+                      to={profilePath}
+                      className={`capshop-user-chip capshop-profile-chip ${isProfileActive ? "active-profile" : ""}`}
+                      aria-label="Open profile"
+                    >
+                      {showAvatarImage ? (
+                        <img
+                          src={avatarUrl}
+                          alt="Profile"
+                          className="capshop-avatar-img"
+                          onError={() => setAvatarFailed(true)}
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <FaUserCircle size={16} />
+                      )}
+                      <span>Profile</span>
+                    </Link>
 
                     <Button className="capshop-logout-btn" onClick={handleLogout}>
                       Logout
