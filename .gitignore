@@ -72,3 +72,7 @@ npm-debug.log
 
 
 backend/services/CapShop.AuthService/appsettings.json
+backend/services/CapShop.PaymentService/appsettings.json
+backend/services/CapShop.AdminService/appsettings.json
+backend/services/CapShop.OrderService/appsettings.json
+backend/services/CapShop.CatalogService/appsettings.json

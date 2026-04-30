@@ -1,0 +1,11 @@
+<Project>
+  <!--
+    Workaround for environments where Windows Application Control blocks executing build outputs
+    from the workspace path (e.g., some D: drive policies).
+
+    Directory.Build.props is imported early by MSBuild, so these paths are applied consistently.
+  -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <BaseOutputPath>$(USERPROFILE)\.capshop\build\bin\$(MSBuildProjectName)\</BaseOutputPath>
+  </PropertyGroup>
+</Project>

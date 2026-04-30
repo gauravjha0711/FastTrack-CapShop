@@ -359,6 +359,40 @@ namespace CapShop.OrderService.Controllers
         }
 
         [Authorize(Roles = "Customer")]
+        [HttpPost("payment/confirm")]
+        public async Task<IActionResult> ConfirmPayment(PaymentConfirmRequestDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userId = GetCurrentUserId();
+
+            var session = await _context.CheckoutSessions
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
+            if (session == null)
+            {
+                return BadRequest(new { message = "Checkout session not found. Complete address step first." });
+            }
+
+            session.PaymentMethod = request.PaymentMethod;
+            session.PaymentStatus = request.PaymentStatus;
+            session.PaymentReference = request.PaymentReference;
+            session.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Payment updated successfully.",
+                paymentStatus = session.PaymentStatus,
+                paymentReference = session.PaymentReference
+            });
+        }
+
+        [Authorize(Roles = "Customer")]
         [HttpPost("place")]
         public async Task<IActionResult> PlaceOrder(PlaceOrderRequestDto request)
         {

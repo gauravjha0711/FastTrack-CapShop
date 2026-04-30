@@ -1,7 +1,5 @@
-using CapShop.AdminService.Data;
-using CapShop.AdminService.Services;
+using CapShop.PaymentService.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -11,18 +9,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection configuration.");
-builder.Services.AddDbContext<AdminDbContext>(options => options.UseSqlServer(connectionString));
-
-builder.Services.AddHttpClient<ICatalogAdminClientService, CatalogAdminClientService>(client =>
+builder.Services.AddHttpClient<IRazorpayGateway, RazorpayGateway>(client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["CatalogService:BaseUrl"]!);
+    client.BaseAddress = new Uri("https://api.razorpay.com/");
 });
 
-builder.Services.AddHttpClient<IOrderAdminClientService, OrderAdminClientService>(client =>
+builder.Services.AddHttpClient<IOrderServiceClient, OrderServiceClient>(client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["OrderService:BaseUrl"]!);
+    client.BaseAddress = new Uri(builder.Configuration["OrderService:BaseUrl"] ?? "http://localhost:5003");
 });
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -46,22 +40,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
-});
-
 var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
-
-app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();

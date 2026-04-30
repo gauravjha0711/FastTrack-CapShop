@@ -15,8 +15,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<OrderDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection configuration.");
+builder.Services.AddDbContext<OrderDbContext>(options => options.UseSqlServer(connectionString));
 
 builder.Services.AddHttpClient<ICatalogClientService, CatalogClientService>(client =>
 {

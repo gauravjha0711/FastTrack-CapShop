@@ -38,6 +38,29 @@ export const simulatePayment = async (paymentMethod, simulateSuccess) => {
   return response.data;
 };
 
+export const confirmPayment = async (payload) => {
+  const response = await axiosInstance.post(
+    "/gateway/orders/payment/confirm",
+    payload
+  );
+  return response.data;
+};
+
+export const createRazorpayOrder = async () => {
+  const response = await axiosInstance.post(
+    "/gateway/payment/razorpay/create-order"
+  );
+  return response.data;
+};
+
+export const verifyRazorpayPayment = async (payload) => {
+  const response = await axiosInstance.post(
+    "/gateway/payment/razorpay/verify",
+    payload
+  );
+  return response.data;
+};
+
 export const placeOrder = async (deliveryOption) => {
   const response = await axiosInstance.post("/gateway/orders/place", {
     deliveryOption,

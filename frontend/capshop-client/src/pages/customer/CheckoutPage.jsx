@@ -19,13 +19,41 @@ import {
 } from "react-icons/fa";
 import {
   getCart,
+  confirmPayment,
+  createRazorpayOrder,
   placeOrder,
-  simulatePayment,
   startCheckout,
+  verifyRazorpayPayment,
 } from "../../services/cartService";
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+
+      const existing = document.querySelector(
+        'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+      );
+
+      if (existing) {
+        existing.addEventListener("load", () => resolve(true));
+        existing.addEventListener("error", () => resolve(false));
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   const [cart, setCart] = useState({
     cartId: 0,
@@ -119,24 +147,151 @@ const CheckoutPage = () => {
     setCurrentStep(3);
   };
 
-  const handleSimulatePayment = async (successFlag) => {
+  const handleRazorpayPayment = async (selectedPaymentMethod) => {
+    let checkoutOpened = false;
+
     try {
       setSubmitting(true);
-      const response = await simulatePayment(paymentMethod, successFlag);
-      setPaymentStatus(response.paymentStatus);
-      setPaymentReference(response.paymentReference || "");
 
-      if (response.paymentStatus === "Success") {
-        setCurrentStep(4);
-      } else {
-        toast.error("Payment failed. Please simulate success to continue.");
+      const ok = await loadRazorpayScript();
+      if (!ok) {
+        toast.error("Unable to load Razorpay. Please try again.");
+        return;
       }
+
+      const order = await createRazorpayOrder();
+
+      const prefillContact = (addressData.phone || "").trim();
+      const prefillName = (addressData.fullName || "").trim();
+
+      // Razorpay options with proper test mode configuration
+      const options = {
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: order.companyName,
+        description: "CapShop Order Payment",
+        order_id: order.orderId,
+        
+        // Prefill user details
+        prefill: {
+          name: prefillName || undefined,
+          contact: prefillContact || undefined,
+        },
+        
+        // Notes for test mode
+        notes: {
+          test_mode: order.testMode ? "true" : "false",
+          payment_method: selectedPaymentMethod,
+        },
+        
+        // Theme
+        theme: {
+          color: "#2563eb",
+        },
+        
+        handler: async (response) => {
+          try {
+            const verifyRes = await verifyRazorpayPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+
+            if (!verifyRes.verified) {
+              await confirmPayment({
+                paymentMethod: selectedPaymentMethod,
+                paymentStatus: "Failed",
+                paymentReference: response.razorpay_payment_id,
+              });
+
+              setPaymentStatus("Failed");
+              setPaymentReference(response.razorpay_payment_id || "");
+              toast.error("Payment verification failed.");
+              return;
+            }
+
+            const confirmRes = await confirmPayment({
+              paymentMethod: selectedPaymentMethod,
+              paymentStatus: "Success",
+              paymentReference: response.razorpay_payment_id,
+            });
+
+            setPaymentStatus(confirmRes.paymentStatus);
+            setPaymentReference(confirmRes.paymentReference || "");
+
+            const placed = await placeOrder(deliveryOption);
+            navigate(`/orders/confirmation/${placed.orderId}`);
+          } catch (err) {
+            console.error(err);
+            toast.error(err.response?.data?.message || "Payment processing failed.");
+          } finally {
+            setSubmitting(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setSubmitting(false);
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", async (resp) => {
+        try {
+          await confirmPayment({
+            paymentMethod: selectedPaymentMethod,
+            paymentStatus: "Failed",
+            paymentReference: resp?.error?.metadata?.payment_id || null,
+          });
+        } catch (err) {
+          console.error(err);
+        }
+
+        setPaymentStatus("Failed");
+        setPaymentReference(resp?.error?.metadata?.payment_id || "");
+        toast.error(resp?.error?.description || "Payment failed.");
+        setSubmitting(false);
+      });
+
+      checkoutOpened = true;
+      rzp.open();
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || "Payment simulation failed.");
+      toast.error(err.response?.data?.message || "Unable to start Razorpay payment.");
+    } finally {
+      if (!checkoutOpened) {
+        setSubmitting(false);
+      }
+    }
+  };
+
+  const handleCodContinue = async () => {
+    try {
+      setSubmitting(true);
+      const confirmRes = await confirmPayment({
+        paymentMethod: "COD",
+        paymentStatus: "Success",
+        paymentReference: null,
+      });
+
+      setPaymentStatus(confirmRes.paymentStatus);
+      setPaymentReference(confirmRes.paymentReference || "");
+
+      const placed = await placeOrder(deliveryOption);
+      navigate(`/orders/confirmation/${placed.orderId}`);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || "Unable to continue with COD.");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSelectPaymentMethod = (method) => {
+    setPaymentMethod(method);
+    setPaymentStatus("");
+    setPaymentReference("");
   };
 
   const handlePlaceOrder = async () => {
@@ -156,7 +311,6 @@ const CheckoutPage = () => {
     { id: 1, title: "Address", icon: <FaMapMarkerAlt /> },
     { id: 2, title: "Delivery", icon: <FaShippingFast /> },
     { id: 3, title: "Payment", icon: <FaCreditCard /> },
-    { id: 4, title: "Review", icon: <FaCheckCircle /> },
   ];
 
   if (loading) {
@@ -205,9 +359,74 @@ const CheckoutPage = () => {
 
           .capshop-stepper {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 14px;
             margin-bottom: 24px;
+          }
+
+          .capshop-payment-method-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+          }
+
+          .capshop-payment-method-tile {
+            border: none;
+            border-radius: 16px;
+            padding: 14px 14px;
+            background: #ffffff;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+          }
+
+          .capshop-payment-method-tile:hover {
+            transform: translateY(-1px);
+          }
+
+          .capshop-payment-method-tile.active {
+            background: linear-gradient(135deg, #eff6ff, #ffffff);
+            border: 1px solid #bfdbfe;
+            box-shadow: 0 12px 26px rgba(37, 99, 235, 0.1);
+          }
+
+          .capshop-payment-method-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            color: #2563eb;
+            font-size: 16px;
+            flex: 0 0 auto;
+          }
+
+          .capshop-payment-method-title {
+            font-weight: 800;
+            color: #0f172a;
+            font-size: 14px;
+            margin-bottom: 2px;
+          }
+
+          .capshop-payment-method-subtitle {
+            color: #64748b;
+            font-size: 12px;
+            margin-bottom: 0;
+          }
+
+          @media (max-width: 768px) {
+            .capshop-stepper {
+              grid-template-columns: repeat(1, 1fr);
+            }
+
+            .capshop-payment-method-grid {
+              grid-template-columns: repeat(1, 1fr);
+            }
           }
 
           .capshop-step-card {
@@ -702,20 +921,68 @@ const CheckoutPage = () => {
               <Card className="capshop-main-card">
                 <h4 className="capshop-card-title">Payment</h4>
 
-                <Form.Group className="mb-4">
-                  <Form.Label className="capshop-label">
-                    Select Payment Method
-                  </Form.Label>
-                  <Form.Select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="capshop-select"
-                  >
-                    <option value="UPI">UPI</option>
-                    <option value="Card">Card</option>
-                    <option value="COD">Cash on Delivery</option>
-                  </Form.Select>
-                </Form.Group>
+                <div className="mb-4">
+                  <div className="capshop-label mb-2">Select Payment Method</div>
+
+                  <div className="capshop-payment-method-grid">
+                    <div
+                      className={`capshop-payment-method-tile ${
+                        paymentMethod === "UPI" ? "active" : ""
+                      }`}
+                      onClick={() => handleSelectPaymentMethod("UPI")}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="capshop-payment-method-icon">
+                        <FaMoneyCheckAlt />
+                      </div>
+                      <div>
+                        <div className="capshop-payment-method-title">UPI</div>
+                        <p className="capshop-payment-method-subtitle">
+                          Pay using UPI (via Razorpay)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`capshop-payment-method-tile ${
+                        paymentMethod === "Card" ? "active" : ""
+                      }`}
+                      onClick={() => handleSelectPaymentMethod("Card")}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="capshop-payment-method-icon">
+                        <FaCreditCard />
+                      </div>
+                      <div>
+                        <div className="capshop-payment-method-title">Card</div>
+                        <p className="capshop-payment-method-subtitle">
+                          Debit/Credit cards + 3DS/OTP (via Razorpay)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`capshop-payment-method-tile ${
+                        paymentMethod === "COD" ? "active" : ""
+                      }`}
+                      onClick={() => handleSelectPaymentMethod("COD")}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="capshop-payment-method-icon">
+                        <FaCheckCircle />
+                      </div>
+                      <div>
+                        <div className="capshop-payment-method-title">Cash on Delivery</div>
+                        <p className="capshop-payment-method-subtitle">
+                          Pay when your order arrives
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="capshop-action-row">
                   <Button
@@ -726,21 +993,23 @@ const CheckoutPage = () => {
                     Back
                   </Button>
 
-                  <Button
-                    className="capshop-btn capshop-success-btn"
-                    onClick={() => handleSimulatePayment(true)}
-                    disabled={submitting}
-                  >
-                    {submitting ? "Processing..." : "Simulate Payment Success"}
-                  </Button>
-
-                  <Button
-                    className="capshop-btn capshop-danger-btn"
-                    onClick={() => handleSimulatePayment(false)}
-                    disabled={submitting}
-                  >
-                    Simulate Payment Failure
-                  </Button>
+                  {paymentMethod === "COD" ? (
+                    <Button
+                      className="capshop-btn capshop-primary-btn"
+                      onClick={handleCodContinue}
+                      disabled={submitting}
+                    >
+                      {submitting ? "Processing..." : "Continue"}
+                    </Button>
+                  ) : (
+                    <Button
+                      className="capshop-btn capshop-primary-btn"
+                      onClick={() => handleRazorpayPayment(paymentMethod)}
+                      disabled={submitting}
+                    >
+                      {submitting ? "Opening Razorpay..." : `Pay Now (${paymentMethod})`}
+                    </Button>
+                  )}
                 </div>
 
                 {paymentStatus && (
@@ -755,63 +1024,6 @@ const CheckoutPage = () => {
               </Card>
             )}
 
-            {currentStep === 4 && (
-              <Card className="capshop-main-card">
-                <h4 className="capshop-card-title">Review Your Order</h4>
-
-                <div className="capshop-review-block">
-                  <div className="capshop-review-heading">Shipping Address</div>
-                  <p className="capshop-review-text">{addressData.fullName}</p>
-                  <p className="capshop-review-text">{addressData.phone}</p>
-                  <p className="capshop-review-text">{addressData.addressLine}</p>
-                  <p className="capshop-review-text">
-                    {addressData.city}, {addressData.state} - {addressData.pincode}
-                  </p>
-                </div>
-
-                <div className="capshop-review-block">
-                  <div className="capshop-review-heading">Delivery</div>
-                  <p className="capshop-review-text">{deliveryOption}</p>
-                </div>
-
-                <div className="capshop-review-block">
-                  <div className="capshop-review-heading">Payment</div>
-                  <p className="capshop-review-text">
-                    {paymentMethod} | {paymentStatus}
-                    {paymentReference ? ` | Ref: ${paymentReference}` : ""}
-                  </p>
-                </div>
-
-                <div className="capshop-review-block">
-                  <div className="capshop-review-heading">Items</div>
-                  {cart.items.map((item) => (
-                    <div key={item.id} className="capshop-item-row">
-                      <p className="capshop-item-name">
-                        {item.productName} × {item.quantity}
-                      </p>
-                      <span className="capshop-item-price">₹{item.lineTotal}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="capshop-action-row">
-                  <Button
-                    variant="light"
-                    className="capshop-btn capshop-outline-btn"
-                    onClick={() => setCurrentStep(3)}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    className="capshop-btn capshop-primary-btn"
-                    onClick={handlePlaceOrder}
-                    disabled={submitting}
-                  >
-                    {submitting ? "Placing Order..." : "Place Order"}
-                  </Button>
-                </div>
-              </Card>
-            )}
           </Col>
 
           <Col lg={4}>
