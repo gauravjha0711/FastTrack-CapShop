@@ -194,7 +194,7 @@ const LoginPage = () => {
 
   const wrapperStyle = {
     width: "100%",
-    maxWidth: "520px",
+    maxWidth: "560px",
     position: "relative",
     zIndex: 2,
   };
@@ -205,7 +205,8 @@ const LoginPage = () => {
     background: "rgba(255,255,255,0.92)",
     backdropFilter: "blur(12px)",
     boxShadow: "0 24px 80px rgba(0,0,0,0.32)",
-    padding: "32px 28px",
+    padding: "40px 32px",
+    minHeight: "580px",
   };
 
   const inputStyle = {

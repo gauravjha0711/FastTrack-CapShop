@@ -175,8 +175,6 @@ const ProductsPage = () => {
 
           .capshop-filter-card {
             padding: 22px;
-            position: sticky;
-            top: 90px;
           }
 
           .capshop-filter-title {
