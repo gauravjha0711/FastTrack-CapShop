@@ -66,11 +66,6 @@ CapShop uses **Razorpay** for payment processing with support for:
 
 The application is configured for **Razorpay Test Mode** for safe development and testing.
 
-**Test Credentials:**
-```
-Key ID: rzp_test_SjIcmIwNFAUVLb
-Key Secret: eJTIHEkJv4pHBOKYP2zIFVGf
-```
 
 ### Quick Test Payment
 
